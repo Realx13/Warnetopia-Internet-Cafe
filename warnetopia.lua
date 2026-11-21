@@ -1,5 +1,5 @@
 --[[
-    Warnetopia — Auto Buy, All Stores Manual Buy (With Discount Badge & Price), Restock Timer & WalkSpeed
+    Warnetopia — Auto Buy, All Stores Manual Buy, Restock Timer, WalkSpeed & Anti AFK
     UI: LinoriaLib
     Credit : Realx
 --]]
@@ -14,6 +14,7 @@ local ThemeManager = loadstring(game:HttpGet(repo .. 'addons/ThemeManager.lua'))
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService        = game:GetService("RunService")
+local VirtualUser       = game:GetService("VirtualUser")
 local LocalPlayer       = Players.LocalPlayer
 
 -- ─── REMOTES ──────────────────────────────────────────────────────────────────
@@ -66,8 +67,10 @@ local cfg = {
     autoOpenEnabled     = false,
     autoDayEnabled      = false,
 
+    -- Player & Anti AFK config
     walkSpeedEnabled    = false,
     walkSpeedValue      = 32,
+    antiAfkEnabled      = true,
 
     store_computer      = true,
     store_furniture     = true,
@@ -89,11 +92,22 @@ local isBuying         = false
 local lastBuyCooldown  = 0
 local latestSnap       = nil
 local restockEndClock  = nil
-local discountPercent  = 0 -- Menyimpan persen diskon aktif (misal: 10 berarti -10%)
+local discountPercent  = 0
 
 local selectedStoreId  = "computer"
 local storeOrderedUI   = {}
 local activeSlotItems  = {}
+
+-- ─── ANTI AFK LISTENER ────────────────────────────────────────────────────────
+LocalPlayer.Idled:Connect(function()
+    if cfg.antiAfkEnabled then
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end)
+        print("[Anti-AFK] 🛡️ Mencegah kick idle 20 menit!")
+    end
+end)
 
 -- ─── HELPER: Format Harga Singkat ─────────────────────────────────────────────
 local function formatShortPrice(num)
@@ -352,7 +366,6 @@ local function refreshManualStoreSlots()
             local liveQty = (entry.id and snapShelf and snapShelf[entry.id] ~= nil) and snapShelf[entry.id] or entry.qty
             entry.qty = liveQty
 
-            -- Hitung harga & diskon terbaru jika ada harga dasar
             local finalPriceStr = entry.priceStr
             local itemDisc = entry.discPct or discountPercent
             if entry.basePrice then
@@ -512,7 +525,16 @@ DelayBox:AddSlider('continueDelay', {
     Callback = function(val) cfg.continueDelay = val end,
 })
 
-local PlayerBox = OpenTab:AddRightGroupbox('🏃 Player')
+local PlayerBox = OpenTab:AddRightGroupbox('🏃 Player & AFK')
+
+PlayerBox:AddToggle('antiAfkEnabled', {
+    Text     = '🛡️ Anti AFK (Anti Kick 20m)',
+    Default  = true,
+    Tooltip  = 'Mencegah disconnect otomatis dari Roblox saat ditinggal AFK',
+    Callback = function(val) cfg.antiAfkEnabled = val end,
+})
+
+PlayerBox:AddDivider()
 
 PlayerBox:AddToggle('walkSpeedEnabled', {
     Text     = 'Custom WalkSpeed',
@@ -572,7 +594,6 @@ local function resolveItemByDisplayName(rawName)
     return nil
 end
 
--- Baca timer, persentase diskon, dan kartu item beserta harganya langsung dari PlayerGui
 local function syncFromGameUI()
     local gui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
     if not gui then return end
@@ -592,7 +613,6 @@ local function syncFromGameUI()
                 restockEndClock = os.clock() + totalSec
             end
 
-            -- Tangkap angka persen diskon dari teks "Harga toko -10%" atau "Diskon 10%"
             if (txt:find("Harga toko") or txt:find("Diskon")) and #txt < 35 then
                 local pct = tonumber(txt:match("(%d+)%%"))
                 if pct then
@@ -656,7 +676,6 @@ local function syncFromGameUI()
                             end
                         end
 
-                        -- Jika di kartu ada harga coret > harga jual, hitung otomatis persen diskon per item
                         local cardDisc = discountPercent
                         if highestPrice and lowestPrice and highestPrice > lowestPrice then
                             cardDisc = math.floor(((highestPrice - lowestPrice) / highestPrice) * 100 + 0.5)
