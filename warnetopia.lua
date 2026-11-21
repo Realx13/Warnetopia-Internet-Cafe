@@ -1,14 +1,15 @@
 --[[
-    Warnetopia — Auto Buy, All Stores Manual Buy, Restock Timer, WalkSpeed, Anti AFK & Discord Webhook
+    Warnetopia — Auto Buy, All Stores Manual Buy, Restock Timer, WalkSpeed, Anti AFK, Webhook & SaveManager (Autoload Config)
     UI: LinoriaLib
     Credit : Realx
 --]]
 
--- ─── LOAD LINORIA ─────────────────────────────────────────────────────────────
+-- ─── LOAD LINORIA & ADDONS ────────────────────────────────────────────────────
 local repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/'
 
 local Library      = loadstring(game:HttpGet(repo .. 'Library.lua'))()
 local ThemeManager = loadstring(game:HttpGet(repo .. 'addons/ThemeManager.lua'))()
+local SaveManager  = loadstring(game:HttpGet(repo .. 'addons/SaveManager.lua'))()
 
 -- ─── SERVICES ─────────────────────────────────────────────────────────────────
 local Players           = game:GetService("Players")
@@ -83,8 +84,7 @@ local cfg = {
     walkSpeedValue      = 32,
     antiAfkEnabled      = true,
 
-    -- Webhook config
-    webhookUrl          = "", -- Bisa diisi langsung di sini atau lewat UI Settings
+    webhookUrl          = "",
     webhookEnabled      = false,
 
     store_computer      = true,
@@ -624,12 +624,23 @@ PlayerBox:AddSlider('walkSpeedValue', {
     end,
 })
 
--- ── TAB 4: Settings & Discord Webhook ─────────────────────────────────────────
+-- ── TAB 4: Settings (Theme, Webhook & SaveManager Config) ─────────────────────
 local SettingsTab = Window:AddTab('Settings')
-local SettingsBox = SettingsTab:AddLeftGroupbox('Theme')
+
+-- Kiri: Theme Manager
+local SettingsBox = SettingsTab:AddLeftGroupbox('🎨 Theme')
 ThemeManager:SetLibrary(Library)
+ThemeManager:SetFolder('WarnetopiaHub')
 ThemeManager:ApplyToGroupbox(SettingsBox)
 
+-- Kiri Bawah: Config / SaveManager (Save, Load, Autoload)
+SaveManager:SetLibrary(Library)
+SaveManager:SetFolder('WarnetopiaHub/configs')
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ 'MenuKeybind', 'selectedManualStore' })
+SaveManager:BuildConfigSection(SettingsTab)
+
+-- Kanan: Discord Webhook
 local WebhookBox = SettingsTab:AddRightGroupbox('🔔 Discord Webhook')
 
 WebhookBox:AddToggle('webhookEnabled', {
@@ -644,7 +655,7 @@ WebhookBox:AddInput('webhookUrlInput', {
     Numeric     = false,
     Finished    = false,
     Text        = 'Webhook URL',
-    Tooltip     = 'Tempel URL Discord Webhook kamu di sini',
+    Tooltip     = 'Tempel URL Discord Webhook kamu di sini (otomatis ikut tersimpan di Config)',
     Placeholder = 'https://discord.com/api/webhooks/...',
     Callback    = function(val) cfg.webhookUrl = val end,
 })
@@ -656,13 +667,16 @@ WebhookBox:AddButton({
             local ok, msg = sendWebhook(
                 "✅ Webhook Terhubung!",
                 "Notifikasi **Warnetopia Hub** siap mengirim laporan belanja otomatis.",
-                5763719 -- Warna Hijau
+                5763719
             )
             Library:Notify((ok and "✅ " or "❌ ") .. msg, 3)
         end)
     end,
     Tooltip = 'Kirim pesan percobaan ke Discord untuk cek apakah URL berfungsi',
 })
+
+-- Muat otomatis config yang sudah di-set sebagai Autoload
+SaveManager:LoadAutoloadConfig()
 
 -- ─── SINKRONISASI DATA DARI UI GAME & SNAPSHOT ────────────────────────────────
 local function formatTime(sec)
@@ -1058,12 +1072,11 @@ local function processSnap(snap)
     end
     isBuying = false
 
-    -- Kirim laporan ringkasan belanja ke Discord Webhook jika aktif
     if cfg.webhookEnabled and #boughtLog > 0 then
         task.spawn(sendWebhook,
             "🛒 Laporan Auto Buy Warnetopia",
             table.concat(boughtLog, "\n"),
-            15844367 -- Warna Emas
+            15844367
         )
     end
 end
