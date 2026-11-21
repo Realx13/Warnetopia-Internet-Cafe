@@ -3,8 +3,8 @@
     - Toggle GUI button (ON/OFF)
     - Auto buka warnet kalau tiba-tiba TUTUP
     - Fix path CafeCard yang bener
+    Credit : Realx
 
-    🖤 untuk Temu
 --]]
 
 local Players           = game:GetService("Players")
