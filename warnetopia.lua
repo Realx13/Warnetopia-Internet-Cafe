@@ -198,10 +198,13 @@ local function itemMatches(item)
     local wantLangka  = cfg.rarityLangka  and r == "langka"
     local wantSangat  = cfg.raritySangat  and r == "sangat_langka"
     if not wantLangka and not wantSangat then return false end
-    if cfg.minTier and cfg.minTier > 0 then
+
+    -- Hanya cek minTier jika item tersebut memiliki properti tier (contoh: komponen PC)
+    if item.tier ~= nil and cfg.minTier and cfg.minTier > 0 then
         local tier = tonumber(item.tier)
-        if not tier or tier < cfg.minTier then return false end
+        if tier and tier < cfg.minTier then return false end
     end
+
     return true
 end
 
