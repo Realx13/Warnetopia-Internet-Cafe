@@ -1,5 +1,5 @@
 --[[
-    Warnetopia — Auto Buy, All Stores Manual Buy, Restock Timer, WalkSpeed & Anti AFK
+    Warnetopia — Auto Buy, All Stores Manual Buy, Restock Timer, WalkSpeed, Anti AFK & Discord Webhook
     UI: LinoriaLib
     Credit : Realx
 --]]
@@ -15,7 +15,11 @@ local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService        = game:GetService("RunService")
 local VirtualUser       = game:GetService("VirtualUser")
+local HttpService       = game:GetService("HttpService")
 local LocalPlayer       = Players.LocalPlayer
+
+-- ─── HTTP REQUEST FUNCTION (MULTI-EXECUTOR) ───────────────────────────────────
+local httpRequest = (syn and syn.request) or (http and http.request) or http_request or request
 
 -- ─── REMOTES ──────────────────────────────────────────────────────────────────
 local Remotes  = ReplicatedStorage:WaitForChild("Remotes", 10)
@@ -50,6 +54,14 @@ local STORE_DISPLAY_TO_ID = {
     ["🛒 Minimart 24"]        = "minimart",
 }
 
+local STORE_ID_TO_NAME = {
+    computer  = "Toko Komputer Jaya",
+    furniture = "Mebel Jati",
+    decor     = "Galeri Dekorasi",
+    kitchen   = "Toko Alat Kafe",
+    minimart  = "Minimart 24",
+}
+
 local UI_TITLE_TO_STORE_ID = {
     ["Toko Komputer Jaya"] = "computer",
     ["Mebel Jati"]         = "furniture",
@@ -58,7 +70,7 @@ local UI_TITLE_TO_STORE_ID = {
     ["Minimart 24"]        = "minimart",
 }
 
-local MAX_SLOTS = 10
+local MAX_SLOTS = 15
 
 -- ─── CONFIG ───────────────────────────────────────────────────────────────────
 local cfg = {
@@ -67,10 +79,13 @@ local cfg = {
     autoOpenEnabled     = false,
     autoDayEnabled      = false,
 
-    -- Player & Anti AFK config
     walkSpeedEnabled    = false,
     walkSpeedValue      = 32,
     antiAfkEnabled      = true,
+
+    -- Webhook config
+    webhookUrl          = "", -- Bisa diisi langsung di sini atau lewat UI Settings
+    webhookEnabled      = false,
 
     store_computer      = true,
     store_furniture     = true,
@@ -98,6 +113,41 @@ local selectedStoreId  = "computer"
 local storeOrderedUI   = {}
 local activeSlotItems  = {}
 
+-- ─── WEBHOOK SENDER ───────────────────────────────────────────────────────────
+local function sendWebhook(title, description, colorHex)
+    if not httpRequest then return false, "Executor tidak mendukung HTTP request" end
+    local url = (cfg.webhookUrl or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if url == "" or not url:find("^https://") then
+        return false, "URL Webhook kosong atau tidak valid"
+    end
+
+    local payload = {
+        username = "Warnetopia Notifier",
+        embeds = {{
+            title = title,
+            description = description,
+            color = colorHex or 3447003,
+            footer = {
+                text = "Player: " .. LocalPlayer.Name .. " • " .. os.date("%H:%M:%S")
+            }
+        }}
+    }
+
+    local ok, res = pcall(function()
+        return httpRequest({
+            Url = url,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode(payload)
+        })
+    end)
+
+    if ok and res and (res.StatusCode == 200 or res.StatusCode == 204) then
+        return true, "Terkirim!"
+    end
+    return false, "Gagal mengirim ke Discord"
+end
+
 -- ─── ANTI AFK LISTENER ────────────────────────────────────────────────────────
 LocalPlayer.Idled:Connect(function()
     if cfg.antiAfkEnabled then
@@ -105,7 +155,6 @@ LocalPlayer.Idled:Connect(function()
             VirtualUser:CaptureController()
             VirtualUser:ClickButton2(Vector2.new())
         end)
-        print("[Anti-AFK] 🛡️ Mencegah kick idle 20 menit!")
     end
 end)
 
@@ -128,13 +177,24 @@ local function parsePriceText(txt)
     return tonumber(digits)
 end
 
--- ─── HELPER: Ubah teks & visibilitas tombol LinoriaLib ────────────────────────
+-- ─── HELPER: Ubah teks, ukuran & visibilitas tombol LinoriaLib ───────────────
 local function setButtonState(btnObj, newText, isVisible)
     if not btnObj then return end
     pcall(function()
+        local container = btnObj.Container
+        if container and container:IsA("GuiObject") then
+            container.Visible = isVisible
+            container.Size = UDim2.new(1, 0, 0, 24)
+            for _, child in ipairs(container:GetChildren()) do
+                if child:IsA("GuiButton") or child:IsA("Frame") then
+                    child.Size = UDim2.new(1, 0, 1, 0)
+                end
+            end
+        end
+
         local lbl = btnObj.Label
-        if not lbl and btnObj.Container then
-            for _, d in ipairs(btnObj.Container:GetDescendants()) do
+        if not lbl and container then
+            for _, d in ipairs(container:GetDescendants()) do
                 if d:IsA("TextLabel") then
                     lbl = d
                     break
@@ -148,14 +208,10 @@ local function setButtonState(btnObj, newText, isVisible)
             local constraint = lbl:FindFirstChildOfClass("UITextSizeConstraint")
             if not constraint then
                 constraint = Instance.new("UITextSizeConstraint")
-                constraint.MaxTextSize = 14
-                constraint.MinTextSize = 9
                 constraint.Parent = lbl
             end
-        end
-
-        if btnObj.Container and btnObj.Container:IsA("GuiObject") then
-            btnObj.Container.Visible = isVisible
+            constraint.MaxTextSize = 15
+            constraint.MinTextSize = 12
         end
     end)
 end
@@ -254,7 +310,7 @@ local Window = Library:CreateWindow({
     Title    = 'Warnetopia Scripts',
     Center   = true,
     AutoShow = true,
-    Size     = UDim2.fromOffset(720, 560),
+    Size     = UDim2.fromOffset(780, 650),
 })
 
 -- ── TAB 1: Auto Buy ───────────────────────────────────────────────────────────
@@ -321,7 +377,7 @@ MinimartBox:AddToggle('autoMinimartEnabled', {
     Callback = function(val) cfg.autoMinimartEnabled = val end,
 })
 
--- ── TAB 2: Toko Kota (TIMER RESTOCK + BELI MANUAL SEMUA TOKO + DISKON ITEM) ───
+-- ── TAB 2: Toko Kota ──────────────────────────────────────────────────────────
 local CafeTab   = Window:AddTab('Toko Kota')
 local TimerBox  = CafeTab:AddLeftGroupbox('⏰ Jadwal Restock Toko')
 
@@ -366,10 +422,11 @@ local function refreshManualStoreSlots()
             local liveQty = (entry.id and snapShelf and snapShelf[entry.id] ~= nil) and snapShelf[entry.id] or entry.qty
             entry.qty = liveQty
 
+            local itemDisc = (discountPercent > 0) and discountPercent or (entry.discPct or 0)
             local finalPriceStr = entry.priceStr
-            local itemDisc = entry.discPct or discountPercent
-            if entry.basePrice then
-                finalPriceStr = formatShortPrice(math.floor(entry.basePrice * mult))
+
+            if entry.basePrice and itemDisc > 0 then
+                finalPriceStr = formatShortPrice(math.floor(entry.basePrice * (1 - (itemDisc / 100)) + 0.5))
             end
 
             table.insert(finalItems, {
@@ -400,7 +457,7 @@ local function refreshManualStoreSlots()
             local itemInfo = BY_ID[itemId]
             local displayName = (itemInfo and itemInfo.name) or itemId
             local basePrice = itemInfo and itemInfo.price
-            local finalPriceStr = basePrice and formatShortPrice(math.floor(basePrice * mult)) or ""
+            local finalPriceStr = basePrice and formatShortPrice(math.floor(basePrice * mult + 0.5)) or ""
 
             table.insert(finalItems, {
                 id = itemId,
@@ -473,6 +530,8 @@ for i = 1, MAX_SLOTS do
     })
     if i > 4 then
         setButtonState(StoreSlotButtons[i], "", false)
+    else
+        setButtonState(StoreSlotButtons[i], ('Slot %d: Menunggu data...'):format(i), true)
     end
 end
 
@@ -565,11 +624,45 @@ PlayerBox:AddSlider('walkSpeedValue', {
     end,
 })
 
--- ── TAB 4: Settings ───────────────────────────────────────────────────────────
+-- ── TAB 4: Settings & Discord Webhook ─────────────────────────────────────────
 local SettingsTab = Window:AddTab('Settings')
 local SettingsBox = SettingsTab:AddLeftGroupbox('Theme')
 ThemeManager:SetLibrary(Library)
 ThemeManager:ApplyToGroupbox(SettingsBox)
+
+local WebhookBox = SettingsTab:AddRightGroupbox('🔔 Discord Webhook')
+
+WebhookBox:AddToggle('webhookEnabled', {
+    Text     = 'Kirim Notif Auto Buy',
+    Default  = false,
+    Tooltip  = 'Kirim laporan ke Discord setiap kali Auto Buy membeli item',
+    Callback = function(val) cfg.webhookEnabled = val end,
+})
+
+WebhookBox:AddInput('webhookUrlInput', {
+    Default     = '',
+    Numeric     = false,
+    Finished    = false,
+    Text        = 'Webhook URL',
+    Tooltip     = 'Tempel URL Discord Webhook kamu di sini',
+    Placeholder = 'https://discord.com/api/webhooks/...',
+    Callback    = function(val) cfg.webhookUrl = val end,
+})
+
+WebhookBox:AddButton({
+    Text = '📨 Test Kirim Webhook',
+    Func = function()
+        task.spawn(function()
+            local ok, msg = sendWebhook(
+                "✅ Webhook Terhubung!",
+                "Notifikasi **Warnetopia Hub** siap mengirim laporan belanja otomatis.",
+                5763719 -- Warna Hijau
+            )
+            Library:Notify((ok and "✅ " or "❌ ") .. msg, 3)
+        end)
+    end,
+    Tooltip = 'Kirim pesan percobaan ke Discord untuk cek apakah URL berfungsi',
+})
 
 -- ─── SINKRONISASI DATA DARI UI GAME & SNAPSHOT ────────────────────────────────
 local function formatTime(sec)
@@ -613,9 +706,9 @@ local function syncFromGameUI()
                 restockEndClock = os.clock() + totalSec
             end
 
-            if (txt:find("Harga toko") or txt:find("Diskon")) and #txt < 35 then
+            if txt:find("Harga toko") or txt:find("Diskon") or txt:match("^%-%d+%%$") then
                 local pct = tonumber(txt:match("(%d+)%%"))
-                if pct then
+                if pct and pct > 0 and pct < 100 then
                     foundDiscNum = pct
                 end
             end
@@ -626,9 +719,13 @@ local function syncFromGameUI()
         end
     end
 
-    if detectedStoreId then
-        discountPercent = foundDiscNum or 0
+    if foundDiscNum then
+        discountPercent = foundDiscNum
+    elseif detectedStoreId then
+        discountPercent = 0
+    end
 
+    if detectedStoreId then
         local cards = {}
         local seenParents = {}
 
@@ -679,6 +776,9 @@ local function syncFromGameUI()
                         local cardDisc = discountPercent
                         if highestPrice and lowestPrice and highestPrice > lowestPrice then
                             cardDisc = math.floor(((highestPrice - lowestPrice) / highestPrice) * 100 + 0.5)
+                            if cardDisc > 0 and discountPercent == 0 then
+                                discountPercent = cardDisc
+                            end
                         end
 
                         if bestTitle then
@@ -856,7 +956,7 @@ RunService.Heartbeat:Connect(function(dt)
     lastStatus = status
 end)
 
--- ─── AUTO BUY LOGIC ───────────────────────────────────────────────────────────
+-- ─── AUTO BUY LOGIC + WEBHOOK REPORT ──────────────────────────────────────────
 local function rareItemMatches(item)
     if not item then return false end
     local r = item.rarity or "biasa"
@@ -920,6 +1020,7 @@ local function processSnap(snap)
     isBuying = true
     lastBuyCooldown = os.clock()
     local originalCFrame = hrp.CFrame
+    local boughtLog = {}
 
     for storeId, items in pairs(purchaseQueue) do
         local targetCFrame = STORE_LOCATIONS[storeId]
@@ -931,9 +1032,21 @@ local function processSnap(snap)
                 local stillEnabled = (storeId == "minimart" and cfg.autoMinimartEnabled) or (storeId ~= "minimart" and cfg.autoBuyEnabled)
                 if not stillEnabled then break end
 
+                local boughtCount = 0
                 for i = 1, itemData.qty do
                     fireAction("storeBuy", { store = storeId, item = itemData.id })
+                    boughtCount = boughtCount + 1
                     task.wait(0.25)
+                end
+
+                if boughtCount > 0 then
+                    local itemInfo = BY_ID[itemData.id]
+                    local itemName = (itemInfo and itemInfo.name) or itemData.id
+                    local rarityTag = (itemInfo and itemInfo.rarity == "sangat_langka" and " [★★]")
+                                   or (itemInfo and itemInfo.rarity == "langka" and " [★]")
+                                   or ""
+                    local storeName = STORE_ID_TO_NAME[storeId] or storeId
+                    table.insert(boughtLog, string.format("• **%s**%s (x%d) — *%s*", itemName, rarityTag, boughtCount, storeName))
                 end
             end
         end
@@ -944,6 +1057,15 @@ local function processSnap(snap)
         getHRP().CFrame = originalCFrame
     end
     isBuying = false
+
+    -- Kirim laporan ringkasan belanja ke Discord Webhook jika aktif
+    if cfg.webhookEnabled and #boughtLog > 0 then
+        task.spawn(sendWebhook,
+            "🛒 Laporan Auto Buy Warnetopia",
+            table.concat(boughtLog, "\n"),
+            15844367 -- Warna Emas
+        )
+    end
 end
 
 Snapshot.OnClientEvent:Connect(function(snap)
