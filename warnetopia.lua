@@ -1,9 +1,10 @@
 --[[
-    Warnetopia Hub — Full Script (Fluent UI — Multi-Mirror, Anti-Scroll & Locked State Ready)
+    Warnetopia Hub — Full Script (Fluent UI — Hard-Lock Watchdog & Multi-Mirror Ready)
     UI: Fluent (Multi-Mirror Loader + Safe Addons)
     Features:
     ✅ Multi-Mirror Loader (Anti Line-1 nil value di HP / Cloud Phone)
-    ✅ Anti-Scroll, Anti-Tembus & Internal-Sync Locked Toggles (isInternalSync + winHidden)
+    ✅ Hard-Lock Watchdog (Heartbeat pemaksa visual Fluent mengikuti cfg + tanpa LoadAutoloadConfig)
+    ✅ Anti-Scroll, Anti-Tembus & Internal-Sync Locked Toggles
     ✅ Auto Buy Rare Items (Komputer, Mebel, Dekorasi)
     ✅ Auto Restock Minimart
     ✅ Manual Buy Semua Toko (15 Slot + Timer Restock)
@@ -15,7 +16,7 @@
     ✅ Auto Buff Es Teh Segar / Es Jeruk
     ✅ Dashboard Real-Time + Low Stock Alert
     ✅ WalkSpeed Custom & Anti AFK
-    ✅ Discord Webhook & Save/Load Config (Safe Wrapped)
+    ✅ Discord Webhook & Save/Load Config Manual
     Credit: Realx13
 --]]
 
@@ -821,12 +822,12 @@ local Tabs = {
 
 local Options = Fluent.Options
 
--- ─── ANTI-SCROLL, ANTI-TEMBUS & INTERNAL-SYNC LOCKED TOGGLE ────────
+-- ─── ANTI-SCROLL, ANTI-TEMBUS & HARD-LOCK TOGGLE ──────────────────
 local isTouchScrolling = false
 local touchOriginPos   = Vector2.zero
 local toggleLastTap    = {}
-local isConfigLoading  = false
 local isInternalSync   = false
+local lockedToggleIds  = {}
 
 UserInputService.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -857,6 +858,8 @@ end)
 
 local function addLockedToggle(section, id, title, desc, defaultVal, extraCallback)
     cfg[id] = defaultVal
+    table.insert(lockedToggleIds, id)
+
     section:AddToggle(id, {
         Title       = title,
         Description = desc,
@@ -864,18 +867,9 @@ local function addLockedToggle(section, id, title, desc, defaultVal, extraCallba
         Callback    = function(val)
             if isInternalSync then return end
 
-            if isConfigLoading then
-                if type(val) == "boolean" then
-                    cfg[id] = val
-                    if extraCallback then extraCallback(val) end
-                end
-                return
-            end
-
-            -- Cek apakah jendela Fluent sedang di-minimize / tersembunyi
             local winHidden = Window and Window.Minimized == true
-
             local now = os.clock()
+
             if winHidden or isTouchScrolling or (toggleLastTap[id] and (now - toggleLastTap[id]) < 0.45) then
                 task.defer(function()
                     if Options and Options[id] and Options[id].Value ~= cfg[id] then
@@ -1193,7 +1187,7 @@ SecWebhook:AddButton({
     end
 })
 
--- ─── SAFE INTERFACE & SAVE MANAGER ────────────────────────────────
+-- ─── SAFE INTERFACE & SAVE MANAGER (TANPA AUTOLOAD) ───────────────
 if InterfaceManager then
     pcall(function()
         InterfaceManager:SetLibrary(Fluent)
@@ -1209,9 +1203,6 @@ if SaveManager then
         SaveManager:IgnoreThemeSettings()
         SaveManager:SetIgnoreIndexes({ "selectedManualStore" })
         SaveManager:BuildConfigSection(Tabs.Settings)
-        isConfigLoading = true
-        SaveManager:LoadAutoloadConfig()
-        isConfigLoading = false
     end)
 end
 
@@ -1469,6 +1460,17 @@ local serveTimer = 0
 local esTehTimer = 0
 
 RunService.Heartbeat:Connect(function(dt)
+    -- Hard-Lock Watchdog: Paksa visual Fluent selalu mengikuti cfg yang sah (anti mati sendiri)
+    if Options and not isInternalSync then
+        for _, id in ipairs(lockedToggleIds) do
+            if Options[id] and Options[id].Value ~= cfg[id] then
+                isInternalSync = true
+                pcall(function() Options[id]:SetValue(cfg[id]) end)
+                isInternalSync = false
+            end
+        end
+    end
+
     if cfg.walkSpeedEnabled then
         local hum = getHumanoid()
         if hum and hum.WalkSpeed ~= cfg.walkSpeedValue then
@@ -1654,5 +1656,5 @@ if isMobile then
     end)
 end
 
-notify("Warnetopia Hub 🖤", "Fluent UI (Full Locked + Multi-Mirror) berhasil dimuat!", 4)
-print("[Hub] 🖤 Warnetopia Hub (Full Locked + Multi-Mirror) loaded!")
+notify("Warnetopia Hub 🖤", "Fluent UI (Hard-Lock Watchdog Ready) berhasil dimuat!", 4)
+print("[Hub] 🖤 Warnetopia Hub (Hard-Lock Watchdog) loaded!")
