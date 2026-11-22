@@ -1,15 +1,15 @@
 --[[
-    Warnetopia Hub — Full Script (Fluent UI — Hard-Lock Watchdog & Multi-Mirror Ready)
+    Warnetopia Hub — Full Script (Fluent UI — EN/ID DayReport, 22px Touch Tolerance & Hard-Lock Ready)
     UI: Fluent (Multi-Mirror Loader + Safe Addons)
     Features:
     ✅ Multi-Mirror Loader (Anti Line-1 nil value di HP / Cloud Phone)
     ✅ Hard-Lock Watchdog (Heartbeat pemaksa visual Fluent mengikuti cfg + tanpa LoadAutoloadConfig)
-    ✅ Anti-Scroll, Anti-Tembus & Internal-Sync Locked Toggles
+    ✅ Toleransi Sentuhan Layar 22px & Cooldown 0.25s (Tap tombol tidak tertolak saat layar agak bergeser)
+    ✅ Auto Lanjut Hari Support Bahasa Inggris ("Continue to Day X") & Indonesia ("Lanjut ke Hari X")
     ✅ Auto Buy Rare Items (Komputer, Mebel, Dekorasi)
     ✅ Auto Restock Minimart
     ✅ Manual Buy Semua Toko (15 Slot + Timer Restock)
     ✅ Auto Buka Warnet
-    ✅ Auto Lanjut Hari
     ✅ Auto Tempatkan Pelanggan
     ✅ Auto Bersih Sampah
     ✅ Auto Layani Semua Menu (Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda)
@@ -344,13 +344,16 @@ local function getStatus()
     return nil
 end
 
--- ─── HELPER: DayReport button ─────────────────────────────────────
+-- ─── HELPER: DayReport button (EN & ID) ───────────────────────────
 local function getDayReportButton()
     for _, root in ipairs(getAllGuiRoots()) do
         for _, obj in ipairs(root:GetDescendants()) do
             if (obj:IsA("TextButton") or obj:IsA("TextLabel")) then
                 local txt = tostring(obj.Text or "")
-                if txt:find("Lanjut ke Hari", 1, true) or txt:match("^Lanjut%s+ke%s+Hari") then
+                if txt:find("Lanjut ke Hari", 1, true)
+                    or txt:match("^Lanjut%s+ke%s+Hari")
+                    or txt:find("Continue to Day", 1, true)
+                    or txt:match("^Continue%s+to%s+Day") then
                     local btn = obj:IsA("GuiButton") and obj or obj:FindFirstAncestorWhichIsA("GuiButton")
                     if btn and isGuiTrulyVisible(btn) then
                         return btn
@@ -618,7 +621,7 @@ local function processAutoPlace()
     if not gui then return end
     local ui = gui:FindFirstChild("WarnetopiaUI") or gui
     for _, obj in ipairs(ui:GetDescendants()) do
-        if (obj:IsA("TextButton") or obj:IsA("TextLabel")) and obj.Text == "Otomatis" then
+        if (obj:IsA("TextButton") or obj:IsA("TextLabel")) and (obj.Text == "Otomatis" or obj.Text == "Auto") then
             local btn = obj:IsA("GuiButton") and obj or obj:FindFirstAncestorWhichIsA("GuiButton")
             if btn and isGuiTrulyVisible(btn) then clickGuiButton(btn) return end
         end
@@ -626,7 +629,7 @@ local function processAutoPlace()
 
     local topBtn, topY = nil, math.huge
     for _, obj in ipairs(ui:GetDescendants()) do
-        if (obj:IsA("TextButton") or obj:IsA("TextLabel")) and obj.Text == "Tempatkan" then
+        if (obj:IsA("TextButton") or obj:IsA("TextLabel")) and (obj.Text == "Tempatkan" or obj.Text == "Assign") then
             local btn = obj:IsA("GuiButton") and obj or obj:FindFirstAncestorWhichIsA("GuiButton")
             if btn and isGuiTrulyVisible(btn) and btn.AbsolutePosition.Y < topY then
                 topY = btn.AbsolutePosition.Y
@@ -822,7 +825,7 @@ local Tabs = {
 
 local Options = Fluent.Options
 
--- ─── ANTI-SCROLL, ANTI-TEMBUS & HARD-LOCK TOGGLE ──────────────────
+-- ─── ANTI-SCROLL (22PX), ANTI-TEMBUS & HARD-LOCK TOGGLE ───────────
 local isTouchScrolling = false
 local touchOriginPos   = Vector2.zero
 local toggleLastTap    = {}
@@ -840,7 +843,7 @@ UserInputService.InputChanged:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseMovement then
         if touchOriginPos ~= Vector2.zero then
             local cur = Vector2.new(inp.Position.X, inp.Position.Y)
-            if (cur - touchOriginPos).Magnitude > 8 then
+            if (cur - touchOriginPos).Magnitude > 22 then
                 isTouchScrolling = true
             end
         end
@@ -870,7 +873,7 @@ local function addLockedToggle(section, id, title, desc, defaultVal, extraCallba
             local winHidden = Window and Window.Minimized == true
             local now = os.clock()
 
-            if winHidden or isTouchScrolling or (toggleLastTap[id] and (now - toggleLastTap[id]) < 0.45) then
+            if winHidden or isTouchScrolling or (toggleLastTap[id] and (now - toggleLastTap[id]) < 0.25) then
                 task.defer(function()
                     if Options and Options[id] and Options[id].Value ~= cfg[id] then
                         isInternalSync = true
@@ -1106,7 +1109,7 @@ addLockedToggle(SecWarnet, "autoOpenEnabled", "Auto Buka Warnet", "Otomatis buka
     end
 end)
 
-addLockedToggle(SecWarnet, "autoDayEnabled", "Auto Lanjut Hari", "Otomatis klik 'Lanjut ke Hari X' saat laporan harian muncul", false)
+addLockedToggle(SecWarnet, "autoDayEnabled", "Auto Lanjut Hari", "Otomatis klik 'Continue to Day X' / 'Lanjut ke Hari X' saat laporan harian muncul", false)
 addLockedToggle(SecWarnet, "autoPlaceEnabled", "Auto Tempatkan Pelanggan", "Otomatis arahkan antrean pelanggan ke PC kosong", false)
 addLockedToggle(SecWarnet, "autoCleanEnabled", "Auto Bersih Sampah", nil, false)
 addLockedToggle(SecWarnet, "autoServeEnabled", "Auto Layani Semua Menu", "Otomatis masak & antar Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda", false)
@@ -1253,7 +1256,7 @@ local function syncFromGameUI()
         for _, obj in ipairs(ui:GetDescendants()) do
             if (obj:IsA("TextButton") or obj:IsA("TextLabel")) and obj.Visible then
                 local t = obj.Text or ""
-                if t == "Beli" or t == "Habis" then
+                if t == "Beli" or t == "Habis" or t == "Buy" or t == "Sold Out" then
                     local cardFrame = obj.Parent
                     while cardFrame and cardFrame:IsA("GuiObject") do
                         if cardFrame.AbsoluteSize.X >= 85 and cardFrame.AbsoluteSize.X <= 260 and cardFrame.AbsoluteSize.Y >= 115 then break end
@@ -1261,7 +1264,7 @@ local function syncFromGameUI()
                     end
                     if cardFrame and not seenParents[cardFrame] then
                         seenParents[cardFrame] = true
-                        local qtyNum = (t == "Habis") and 0 or nil
+                        local qtyNum = (t == "Habis" or t == "Sold Out") and 0 or nil
                         local bestTitle, bestY = nil, math.huge
                         local lowestPrice, highestPrice = nil, nil
                         for _, child in ipairs(cardFrame:GetDescendants()) do
@@ -1269,13 +1272,15 @@ local function syncFromGameUI()
                                 local ct = child.Text or ""
                                 if ct:match("^Sisa%s*(%d+)") then
                                     qtyNum = tonumber(ct:match("^Sisa%s*(%d+)"))
+                                elseif ct:match("^(%d+)%s*left") then
+                                    qtyNum = tonumber(ct:match("^(%d+)%s*left"))
                                 elseif ct:match("^%$[%d%.%,]+") then
                                     local parsed = parsePriceText(ct)
                                     if parsed then
                                         if not lowestPrice or parsed < lowestPrice then lowestPrice = parsed end
                                         if not highestPrice or parsed > highestPrice then highestPrice = parsed end
                                     end
-                                elseif ct ~= "" and ct ~= "Beli" and ct ~= "Habis"
+                                elseif ct ~= "" and ct ~= "Beli" and ct ~= "Habis" and ct ~= "Buy" and ct ~= "Sold Out"
                                     and not ct:match("^x%d+") and not ct:match("^T%d+$")
                                     and not ct:find("Rare") and not ct:find("Tip") then
                                     if child.AbsolutePosition.Y < bestY then
@@ -1656,5 +1661,5 @@ if isMobile then
     end)
 end
 
-notify("Warnetopia Hub 🖤", "Fluent UI (Hard-Lock Watchdog Ready) berhasil dimuat!", 4)
-print("[Hub] 🖤 Warnetopia Hub (Hard-Lock Watchdog) loaded!")
+notify("Warnetopia Hub 🖤", "Fluent UI (EN/ID DayReport + 22px Touch Lock) siap!", 4)
+print("[Hub] 🖤 Warnetopia Hub (EN/ID DayReport + 22px Touch Lock) loaded!")
