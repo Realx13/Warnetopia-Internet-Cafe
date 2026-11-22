@@ -1,10 +1,10 @@
 --[[
-    Warnetopia Hub — Full Script (Fluent UI — Clean Direct Toggles & EN/ID DayReport)
+    Warnetopia Hub — Full Script (Fluent UI — Anti Double-Tap Debounce & VirtualInputManager Ready)
     UI: Fluent (Multi-Mirror Loader + Safe Addons)
     Features:
     ✅ Multi-Mirror Loader (Anti Line-1 nil value di HP / Cloud Phone)
-    ✅ Clean Direct Toggles (Tap langsung diterima tanpa ditarik balik watchdog)
-    ✅ Auto Lanjut Hari Support Bahasa Inggris ("Continue to Day X") & Indonesia ("Lanjut ke Hari X")
+    ✅ Anti Double-Tap Debounce (0.35s) — Memblokir pantulan klik ke-2 di executor HP
+    ✅ VirtualInputManager + firesignal pada clickGuiButton (Auto klik Continue to Day X / Lanjut ke Hari X)
     ✅ Auto Buy Rare Items (Komputer, Mebel, Dekorasi)
     ✅ Auto Restock Minimart
     ✅ Manual Buy Semua Toko (15 Slot + Timer Restock)
@@ -60,6 +60,7 @@ local Players             = game:GetService("Players")
 local ReplicatedStorage   = game:GetService("ReplicatedStorage")
 local RunService          = game:GetService("RunService")
 local VirtualUser         = game:GetService("VirtualUser")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local HttpService         = game:GetService("HttpService")
 local UserInputService    = game:GetService("UserInputService")
 local LocalPlayer         = Players.LocalPlayer
@@ -278,11 +279,28 @@ end
 
 local function clickGuiButton(btn)
     if not btn then return end
-    if firesignal then
-        pcall(function() firesignal(btn.MouseButton1Down) end)
-        pcall(function() firesignal(btn.MouseButton1Click) end)
-        pcall(function() firesignal(btn.Activated) end)
+    local targets = { btn }
+    for _, d in ipairs(btn:GetDescendants()) do
+        if d:IsA("GuiButton") then table.insert(targets, d) end
     end
+    for _, t in ipairs(targets) do
+        if firesignal then
+            pcall(function() firesignal(t.MouseButton1Down) end)
+            pcall(function() firesignal(t.MouseButton1Up) end)
+            pcall(function() firesignal(t.MouseButton1Click) end)
+            pcall(function() firesignal(t.Activated) end)
+        end
+    end
+    -- Tap langsung ke titik tengah tombol via VirtualInputManager (ampuh di executor HP)
+    pcall(function()
+        local pos  = btn.AbsolutePosition
+        local size = btn.AbsoluteSize
+        local cx   = pos.X + (size.X / 2)
+        local cy   = pos.Y + (size.Y / 2) + 36
+        VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, true, game, 1)
+        task.wait(0.05)
+        VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, false, game, 1)
+    end)
 end
 
 local function triggerPromptSafe(prompt)
@@ -822,7 +840,10 @@ local Tabs = {
     Settings  = Window:AddTab({ Title = "Settings",   Icon = "settings" }),
 }
 
--- ─── CLEAN DIRECT TOGGLE (TANPA WATCHDOG & TANPA FILTER TOLAK TAP) ─
+-- ─── ANTI DOUBLE-TAP DEBOUNCE TOGGLE (KHUSUS EXECUTOR HP) ──────────
+local toggleLastChange = {}
+local isReverting      = false
+
 local function addLockedToggle(section, id, title, desc, defaultVal, extraCallback)
     cfg[id] = defaultVal
     section:AddToggle(id, {
@@ -830,6 +851,24 @@ local function addLockedToggle(section, id, title, desc, defaultVal, extraCallba
         Description = desc,
         Default     = defaultVal,
         Callback    = function(val)
+            if isReverting then return end
+            local now = os.clock()
+
+            -- Blokir pantulan klik ke-2 dalam < 0.35 detik setelah perubahan sah
+            if toggleLastChange[id] and (now - toggleLastChange[id]) < 0.35 then
+                isReverting = true
+                task.defer(function()
+                    pcall(function()
+                        if Fluent.Options and Fluent.Options[id] then
+                            Fluent.Options[id]:SetValue(cfg[id])
+                        end
+                    end)
+                    isReverting = false
+                end)
+                return
+            end
+
+            toggleLastChange[id] = now
             if type(val) == "boolean" then
                 cfg[id] = val
                 if extraCallback then extraCallback(val) end
@@ -1595,5 +1634,5 @@ if isMobile then
     end)
 end
 
-notify("Warnetopia Hub 🖤", "Fluent UI (Clean Direct Toggles Ready) berhasil dimuat!", 4)
-print("[Hub] 🖤 Warnetopia Hub (Clean Direct Toggles) loaded!")
+notify("Warnetopia Hub 🖤", "Fluent UI (Anti Double-Tap + VirtualInputManager Ready) dimuat!", 4)
+print("[Hub] 🖤 Warnetopia Hub (Anti Double-Tap + VirtualInputManager) loaded!")
