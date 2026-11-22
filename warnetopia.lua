@@ -1,12 +1,1564 @@
 --[[
- .____                  ________ ___.    _____                           __                
- |    |    __ _______   \_____  \\_ |___/ ____\_ __  ______ ____ _____ _/  |_  ___________ 
- |    |   |  |  \__  \   /   |   \| __ \   __\  |  \/  ___// ___\\__  \\   __\/  _ \_  __ \
- |    |___|  |  // __ \_/    |    \ \_\ \  | |  |  /\___ \\  \___ / __ \|  | (  <_> )  | \/
- |_______ \____/(____  /\_______  /___  /__| |____//____  >\___  >____  /__|  \____/|__|   
-         \/          \/         \/    \/                \/     \/     \/                   
-          \_Welcome to LuaObfuscator.com   (Alpha 0.10.9) ~  Much Love, Ferib 
+    Warnetopia Hub — Full Script
+    UI: LinoriaLib
+    Features:
+    ✅ Auto Buy Rare Items (Komputer, Mebel, Dekorasi)
+    ✅ Auto Restock Minimart
+    ✅ Manual Buy Semua Toko
+    ✅ Auto Buka Warnet
+    ✅ Auto Lanjut Hari
+    ✅ Auto Tempatkan Pelanggan
+    ✅ Auto Bersih Sampah
+    ✅ Auto Layani Semua Menu (Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda)
+    ✅ Auto Buff Es Teh Segar
+    ✅ WalkSpeed Custom
+    ✅ Anti AFK
+    ✅ Discord Webhook
+    ✅ Save/Load Config
+    Credit: Realx13
+--]]
 
-]]--
+-- ─── LOAD LINORIA ─────────────────────────────────────────────────
+local repo         = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/'
+local Library      = loadstring(game:HttpGet(repo .. 'Library.lua'))()
+local ThemeManager = loadstring(game:HttpGet(repo .. 'addons/ThemeManager.lua'))()
+local SaveManager  = loadstring(game:HttpGet(repo .. 'addons/SaveManager.lua'))()
 
-local v0="https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/";local v1=loadstring(game:HttpGet(v0   .. "Library.lua" ))();local v2=loadstring(game:HttpGet(v0   .. "addons/ThemeManager.lua" ))();local v3=loadstring(game:HttpGet(v0   .. "addons/SaveManager.lua" ))();local v4=game:GetService("Players");local v5=game:GetService("ReplicatedStorage");local v6=game:GetService("RunService");local v7=game:GetService("VirtualUser");local v8=game:GetService("HttpService");local v9=v4.LocalPlayer;local v10=(syn and syn.request) or (http and http.request) or http_request or request ;local v11=v5:WaitForChild("Remotes",42 -32 );local v12=v11:WaitForChild("Action",1181 -(243 + 928) );local v13=v11:WaitForChild("Snapshot",10);local v14=require(v5.Shared.Data.Catalog);local v15={};local v16={};for v129,v130 in ipairs(v14.ITEMS) do local v131=0 + 0 ;while true do if ((0 -0)==v131) then v15[v130.id]=v130;if v130.name then v16[v130.name:lower()]=v130;end break;end end end local v17={computer=CFrame.new( -(285.6 -150),4.7 -2 , -4.9),furniture=CFrame.new( -182.8,1.7000000000000002 + 1 , -(11.3 -5)),decor=CFrame.new( -(69.1 -43),1229.7 -(322 + 905) , -42.2),kitchen=CFrame.new( -(798.6 -(602 + 9)),2.7, -(1233.1 -(449 + 740))),minimart=CFrame.new(91.7,2.7, -(877.2 -(826 + 46))),esteh=CFrame.new(1252.1 -(245 + 702) ,6.7 -4 , -(15.899999999999999 + 31))};local v18={["💻 Toko Komputer Jaya"]="computer",["🪑 Mebel Jati"]="furniture",["🌿 Galeri Dekorasi"]="decor",["☕ Toko Alat Kafe"]="kitchen",["🛒 Minimart 24"]="minimart"};local v19={computer="Toko Komputer Jaya",furniture="Mebel Jati",decor="Galeri Dekorasi",kitchen="Toko Alat Kafe",minimart="Minimart 24"};local v20={["Toko Komputer Jaya"]="computer",["Mebel Jati"]="furniture",["Galeri Dekorasi"]="decor",["Toko Alat Kafe"]="kitchen",["Minimart 24"]="minimart"};local v21={["🧊 Es Teh Manis ($5.000 • 4 Jam)"]="es_teh",["🍊 Es Jeruk ($7.000 • 5.5 Jam)"]="es_jeruk"};local v22={es_teh="Es Teh Manis ($5.000)",es_jeruk="Es Jeruk ($7.000)"};local v23={["Buat Mie Telur"]=2.5,["Buat Nasi Goreng"]=1900.5 -(260 + 1638) ,["Buat Snack"]=440.5 -(382 + 58) ,["Buat Kopi Hitam"]=1,["Buat Es Teh"]=0.8 -0 ,["Buat Soda"]=0.8 + 0 };local v24={["mie telur"]={cook="Buat Mie Telur",station="stove",switchNeeded=false},["nasi goreng"]={cook="Buat Nasi Goreng",station="stove",switchNeeded=true},snack={cook="Buat Snack",station="snack_rack",switchNeeded=false},["kopi hitam"]={cook="Buat Kopi Hitam",station="coffee_machine",switchNeeded=false},["es teh"]={cook="Buat Es Teh",station="fridge",switchNeeded=false},soda={cook="Buat Soda",station="fridge",switchNeeded=true}};local v25={"Antar Mie Telur","Antar Nasi Goreng","Antar Snack","Antar Kopi Hitam","Antar Es Teh","Antar Soda"};local v26={computer="store_computer",furniture="store_furniture",decor="store_decor"};local v27=35 -20 ;local v28={autoBuyEnabled=false,autoMinimartEnabled=false,autoOpenEnabled=false,autoDayEnabled=false,autoPlaceEnabled=false,autoCleanEnabled=false,autoServeEnabled=false,autoEsTehEnabled=false,esTehChoice="es_jeruk",walkSpeedEnabled=false,walkSpeedValue=3 + 29 ,antiAfkEnabled=true,webhookUrl="",stockAlertEnabled=true,stockThreshold=10,webhookEnabled=false,store_computer=true,store_furniture=true,store_decor=true,minTier=3,rarityLangka=true,raritySangat=true,reopenDelay=6,continueDelay=1691.5 -(1121 + 569) };local v29=nil;local v30=false;local v31=false;local v32=false;local v33=false;local v34=false;local v35=214 -(22 + 192) ;local v36=683 -(483 + 200) ;local v37=nil;local v38={};local v39=nil;local v40=0;local v41={};local v42="computer";local v43={};local v44={};local function v45(v132,v133) pcall(function() v12:FireServer(v132,v133 or {} );end);end local function v46() local v134=1463 -(1404 + 59) ;local v135;while true do if (v134==(0 -0)) then v135=v9.Character;return v135 and v135:FindFirstChild("HumanoidRootPart") ;end end end local function v47() local v136=v9.Character;return v136 and v136:FindFirstChildOfClass("Humanoid") ;end local function v48(v137) local v138=0 -0 ;local v139;while true do if (v138==1) then while v139 and v139:IsA("GuiObject")  do if  not v139.Visible then return false;end v139=v139.Parent;end return true;end if (v138==(765 -(468 + 297))) then if ( not v137 or  not v137:IsA("GuiObject") or  not v137.Visible) then return false;end v139=v137.Parent;v138=563 -(334 + 228) ;end end end local function v49(v140) local v141=0;while true do if (v141==(3 -2)) then pcall(function() firesignal(v140.Activated);end);break;end if (v141==0) then if ( not v140 or  not firesignal) then return;end pcall(function() firesignal(v140.MouseButton1Click);end);v141=2 -1 ;end end end local function v50(v142) local v143=0 -0 ;while true do if (v143==(0 + 0)) then if ( not v142 or  not v142.Parent or  not v142.Enabled) then return;end if fireproximityprompt then pcall(function() fireproximityprompt(v142);end);else local v478=0;while true do if (v478==(237 -(141 + 95))) then pcall(function() v142:InputHoldEnd();end);break;end if (v478==(0 + 0)) then pcall(function() v142:InputHoldBegin();end);task.wait((v142.HoldDuration or 0) + (0.15 -0) );v478=2 -1 ;end end end break;end end end local function v51(v144,v145,v146) local v147=0;local v148;while true do if (v147==1) then v144.CFrame=CFrame.new(v148 + (v146 or Vector3.new(0,1 + 1 ,2)) );task.wait(0.3 -0 );break;end if (0==v147) then if ( not v144 or  not v145) then return;end v148=(v145:IsA("Model") and v145:GetPivot().Position) or v145.Position ;v147=1;end end end local function v52(v149) if ( not v149 or (type(v149)~="number")) then return "";end if (v149>=1000000) then local v368=0;local v369;while true do if (v368==(0 + 0)) then v369=v149/(520725 + 479275) ;return (((v369%(1 -0))==(0 + 0)) and ("$"   .. v369   .. "Jt")) or string.format("$%.2fJt",v369) ;end end elseif (v149>=1000) then local v434=163 -(92 + 71) ;local v435;while true do if (v434==(0 + 0)) then v435=v149/(1681 -681) ;return (((v435%(766 -(574 + 191)))==0) and ("$"   .. v435   .. "K")) or string.format("$%.1fK",v435) ;end end end return "$"   .. tostring(v149) ;end local function v53(v150) local v151=0 + 0 ;while true do if (v151==0) then if  not v150 then return nil;end return tonumber(v150:gsub("[^%d]",""));end end end local function v54(v152) local v153=0 -0 ;while true do if (v153==(0 + 0)) then v152=math.max(849 -(254 + 595) ,math.floor(v152));return string.format("%02d:%02d",math.floor(v152/60 ),v152%60 );end end end local function v55() local v154=0;local v155;local v156;local v157;while true do if (v154==(127 -(55 + 71))) then v156,v157=pcall(function() return v155.WarnetopiaUI.Root.TL.TopRow.CafeCard;end);if ( not v156 or  not v157) then return nil;end v154=2 -0 ;end if ((1790 -(573 + 1217))==v154) then v155=v9:FindFirstChildOfClass("PlayerGui");if  not v155 then return nil;end v154=2 -1 ;end if (v154==(1 + 1)) then for v436,v437 in ipairs(v157:GetDescendants()) do if v437:IsA("TextLabel") then local v505=0;local v506;while true do if (v505==(0 -0)) then v506=v437.Text:upper();if ((v506=="BUKA") or (v506=="OPEN")) then return "BUKA";elseif ((v506=="TUTUP") or (v506=="CLOSED")) then return "TUTUP";end break;end end end end return nil;end end end local function v56() local v158=939 -(714 + 225) ;local v159;while true do if (v158==0) then v159=v9:FindFirstChildOfClass("PlayerGui");if  not v159 then return nil;end v158=2 -1 ;end if (v158==1) then for v438,v439 in ipairs(v159:GetDescendants()) do if ((v439:IsA("TextButton") or v439:IsA("TextLabel")) and (v439.Text or ""):find("Lanjut ke Hari")) then local v507=0 -0 ;local v508;while true do if (v507==(0 + 0)) then v508=(v439:IsA("GuiButton") and v439) or v439:FindFirstAncestorWhichIsA("GuiButton") ;if (v508 and v48(v508)) then return v508;end break;end end end end return nil;end end end local function v57() local v160=0 -0 ;local v161;local v162;local v163;while true do if (v160==(807 -(118 + 688))) then v162,v163=pcall(function() return v161.WarnetopiaUI.Root.TL;end);if ( not v162 or  not v163) then return nil;end v160=50 -(25 + 23) ;end if (v160==2) then for v440,v441 in ipairs(v163:GetDescendants()) do if (v441:IsA("TextLabel") and v441.Visible) then local v509=0 + 0 ;local v510;while true do if (v509==(1886 -(927 + 959))) then v510=(v441.Text or ""):gsub("<[^>]+>"," "):gsub("%s+"," "):gsub("^%s+",""):gsub("%s+$","");if (v510:lower():find("segar") or v510:lower():find("fresh for")) then return v510:gsub("^[^%w]+","");end break;end end end end return nil;end if (v160==0) then v161=v9:FindFirstChildOfClass("PlayerGui");if  not v161 then return nil;end v160=3 -2 ;end end end local function v58(v164,v165) local v166=732 -(16 + 716) ;local v167;local v168;while true do if (v166==(1 -0)) then v168=v167.CFrame;v167.CFrame=v17.esteh;task.wait(97.45 -(11 + 86) );v45("eat",{item=v164,warung="esteh"});v166=2;end if (v166==2) then v1:Notify(((v165 and "🥤 Auto Buff: ") or "✅ ")   .. (v22[v164] or v164) ,4.5 -2 );task.wait(285.3 -(175 + 110) );if v46() then v46().CFrame=v168;end v32=false;v166=3;end if (v166==(0 -0)) then if (v32 or v33 or v34) then return false;end v167=v46();if  not v167 then return false;end v32=true;v166=1;end if (3==v166) then return true;end end end local function v59(v169,v170) local v171=0;while true do if (v171==0) then for v442,v443 in ipairs(workspace:GetDescendants()) do if (v443:IsA("ProximityPrompt") and v443.Enabled) then if (((v443.Parent and v443.Parent.Name)==v169) and (v443.ActionText==v170)) then local v551=v443.Parent;if (v551 and (v551:IsA("BasePart") or v551:IsA("Model"))) then return v443,v551;end end end end return nil,nil;end end end local function v60(v172) local v173=0 -0 ;while true do if (v173==0) then for v444,v445 in ipairs(workspace:GetDescendants()) do if (v445:IsA("ProximityPrompt") and v445.Enabled) then if (((v445.Parent and v445.Parent.Name)==v172) and (v445.ActionText=="Ganti")) then local v552=v445.Parent;if (v552 and (v552:IsA("BasePart") or v552:IsA("Model"))) then return v445,v552;end end end end return nil,nil;end end end local function v61(v174) local v175=1796 -(503 + 1293) ;while true do if ((0 -0)==v175) then for v446,v447 in ipairs(workspace:GetDescendants()) do if (v447:IsA("ProximityPrompt") and v447.Enabled) then local v511=0;local v512;local v513;local v514;local v515;while true do if (1==v511) then v514=v513:lower();v515=false;v511=2 + 0 ;end if (v511==(1063 -(810 + 251))) then for v578,v579 in ipairs(v25) do if (v512==v579) then v515=true;break;end end if v515 then if ( not v174 or v514:find(v174:lower(),1 + 0 ,true)) then local v613=v447.Parent;if (v613 and v613:IsA("Attachment")) then v613=v613.Parent;end if (v613 and (v613:IsA("BasePart") or v613:IsA("Model"))) then return v447,v613,v512,v513;end end end break;end if (v511==0) then v512=v447.ActionText or "" ;v513=v447.ObjectText or "" ;v511=1 + 0 ;end end end end return nil,nil,nil,nil;end end end local function v62() local v176={};for v322,v323 in ipairs(workspace:GetDescendants()) do if (v323:IsA("ProximityPrompt") and v323.Enabled) then local v394=0 + 0 ;local v395;local v396;local v397;while true do if (v394==(534 -(43 + 490))) then v397=((v323.Parent and v323.Parent.Name) or ""):lower();if (v395:find("bersih") or v395:find("sampah") or v395:find("clean") or v395:find("trash") or v396:find("sampah") or v397:find("trash") or v397:find("sampah")) then local v553=0;local v554;while true do if (v553==(733 -(711 + 22))) then v554=v323.Parent;if (v554 and v554:IsA("Attachment")) then v554=v554.Parent;end v553=3 -2 ;end if (v553==(860 -(240 + 619))) then if (v554 and (v554:IsA("BasePart") or v554:IsA("Model"))) then table.insert(v176,{prompt=v323,part=v554});end break;end end end break;end if (v394==0) then v395=(v323.ActionText or ""):lower();v396=(v323.ObjectText or ""):lower();v394=1;end end end end return v176;end local function v63() if (v34 or v32 or v33) then return;end local v177,v178,v179,v180=v61(nil);if ( not v177 or  not v178) then return;end local v181=(v179:match("^Antar%s+(.+)$") or ""):lower();local v182=v24[v181];local v183=v46();if  not v183 then return;end v34=true;local v184=v183.CFrame;local v185=false;if v182 then local v370=0;local v371;local v372;while true do if ((1 + 0)==v370) then if (v371 and v372) then local v527=0 -0 ;local v528;while true do if (v527==(0 + 0)) then v528=v46();if v528 then v51(v528,v372);v50(v371);local v605=v23[v182.cook] or ((v371.HoldDuration or 0) + (1744.5 -(1344 + 400))) ;task.wait(v605);end break;end end end break;end if (v370==(405 -(255 + 150))) then if v182.switchNeeded then local v529=0 + 0 ;local v530;local v531;while true do if ((0 + 0)==v529) then v530,v531=v60(v182.station);if (v530 and v531) then local v606=0 -0 ;while true do if (v606==(0 -0)) then v51(v183,v531);v50(v530);v606=1740 -(404 + 1335) ;end if (v606==(407 -(183 + 223))) then task.wait((v530.HoldDuration or 0) + (0.4 -0) );v185=true;break;end end end break;end end end v371,v372=v59(v182.station,v182.cook);v370=1;end end end if (v28.autoServeEnabled and  not v32) then local v373=0 + 0 ;local v374;while true do if (v373==0) then v374=v177 and v177.Parent and v177.Enabled ;if v374 then local v532=v46();if v532 then local v565=0 + 0 ;while true do if ((337 -(10 + 327))==v565) then v51(v532,v178);v50(v177);v565=1;end if (v565==(1 + 0)) then task.wait((v177.HoldDuration or (338 -(118 + 220))) + 0.4 );break;end end end else local v533,v534,v535,v535=v61(((v181~="") and v181) or nil );if (v533 and v534) then local v566=v46();if v566 then local v595=0 + 0 ;while true do if (v595==(450 -(108 + 341))) then task.wait((v533.HoldDuration or (0 + 0)) + (0.4 -0) );break;end if (v595==(1493 -(711 + 782))) then v51(v566,v534);v50(v533);v595=1;end end end end end break;end end end if (v46() and  not v32 and  not v33) then v46().CFrame=v184;end v34=false;if (v185 and v182) then task.spawn(function() local v398=0;local v399;local v400;local v401;while true do if (v398==(0 -0)) then task.wait(0.3);v399=((v182.station=="stove") and "Buat Mie Telur") or "Buat Es Teh" ;v398=470 -(270 + 199) ;end if (v398==(1 + 0)) then v400,v401=v59(v182.station,v399);if  not v400 then local v555,v556=v60(v182.station);if (v555 and v556) then local v580=1819 -(580 + 1239) ;local v581;while true do if (v580==(0 -0)) then v581=v46();if v581 then local v644=0;while true do if (v644==(0 + 0)) then v51(v581,v556);v50(v555);break;end end end break;end end end end break;end end end);end end local function v64() local v186=0 + 0 ;local v187;local v188;local v189;while true do if ((1 + 1)==v186) then if ( #v188==(0 -0)) then return;end v33=true;v186=2 + 1 ;end if (v186==(1171 -(645 + 522))) then if (v46() and  not v32 and  not v34) then v46().CFrame=v189;end v33=false;break;end if (v186==(1790 -(1010 + 780))) then if (v33 or v32 or v34) then return;end v187=v46();v186=1;end if (v186==(1 + 0)) then if  not v187 then return;end v188=v62();v186=9 -7 ;end if (3==v186) then v189=v187.CFrame;for v448,v449 in ipairs(v188) do if ( not v28.autoCleanEnabled or v32 or v34) then break;end local v450,v451=v449.prompt,v449.part;if (v450 and v450.Parent and v450.Enabled and v451 and v451.Parent) then local v516=0 -0 ;local v517;while true do if (v516==(1836 -(1045 + 791))) then v517=v46();if v517 then v51(v517,v451);v50(v450);task.wait((v450.HoldDuration or (0 -0)) + 0.35 );end break;end end end end v186=5 -1 ;end end end local function v65(v190,v191,v192,v193) if ((type(v190)~="table") or v191[v190] or (v193>5)) then return;end v191[v190]=true;if ((type(v190.id)=="string") and ( #v190.id>=(513 -(351 + 154))) and ( #v190.id<=24)) then if (v190.hours or v190.patience or v190.name or v190.want) then v192[v190.id]=true;end end for v324,v325 in pairs(v190) do if ((type(v325)=="table") and (v324~="shops") and (v324~="inventory") and (v324~="desks")) then v65(v325,v191,v192,v193 + (1575 -(1281 + 293)) );end end end local function v66() local v195=os.clock();local v196=false;if v37 then local v376={};v65(v37,{},v376,266 -(28 + 238) );for v403 in pairs(v376) do if ((v195-(v41[v403] or (0 -0)))>=2.5) then local v481=1559 -(1381 + 178) ;while true do if (v481==(0 + 0)) then v41[v403]=v195;v45("assign",{id=v403,desk="auto"});v481=1;end if (v481==(1 + 0)) then v196=true;task.wait(0.15 + 0 );break;end end end end end if v196 then return;end local v197=v9:FindFirstChildOfClass("PlayerGui");if  not v197 then return;end local v198=v197:FindFirstChild("WarnetopiaUI") or v197 ;for v326,v327 in ipairs(v198:GetDescendants()) do if ((v327:IsA("TextButton") or v327:IsA("TextLabel")) and (v327.Text=="Otomatis")) then local v404=0 -0 ;local v405;while true do if (v404==(0 + 0)) then v405=(v327:IsA("GuiButton") and v327) or v327:FindFirstAncestorWhichIsA("GuiButton") ;if (v405 and v48(v405)) then local v558=470 -(381 + 89) ;while true do if (v558==0) then v49(v405);return;end end end break;end end end end local v199,v200=nil,math.huge;for v328,v329 in ipairs(v198:GetDescendants()) do if ((v329:IsA("TextButton") or v329:IsA("TextLabel")) and (v329.Text=="Tempatkan")) then local v406=0;local v407;while true do if (v406==(0 + 0)) then v407=(v329:IsA("GuiButton") and v329) or v329:FindFirstAncestorWhichIsA("GuiButton") ;if (v407 and v48(v407) and (v407.AbsolutePosition.Y<v200)) then local v559=0 + 0 ;while true do if (v559==0) then v200=v407.AbsolutePosition.Y;v199=v407;break;end end end break;end end end end if v199 then v49(v199);end end local function v67(v201,v202,v203) local v204=0;local v205;local v206;local v207;local v208;while true do if (v204==(0 -0)) then if  not v10 then return false,"Executor tidak support HTTP";end v205=(v28.webhookUrl or ""):gsub("^%s+",""):gsub("%s+$","");v204=1157 -(1074 + 82) ;end if (v204==(6 -3)) then return false,"Gagal kirim";end if (v204==(1785 -(214 + 1570))) then if ((v205=="") or  not v205:find("^https://")) then return false,"URL tidak valid";end v206={username="Warnetopia Notifier",embeds={{title=v201,description=v202,color=v203 or (3448458 -(990 + 465)) ,footer={text="Player: "   .. v9.Name   .. " • "   .. os.date("%H:%M:%S") }}}};v204=2;end if (2==v204) then v207,v208=pcall(function() return v10({Url=v205,Method="POST",Headers={["Content-Type"]="application/json"},Body=v8:JSONEncode(v206)});end);if (v207 and v208 and ((v208.StatusCode==200) or (v208.StatusCode==(85 + 119)))) then return true,"Terkirim!";end v204=2 + 1 ;end end end v9.Idled:Connect(function() if v28.antiAfkEnabled then pcall(function() local v408=0;while true do if (v408==(0 + 0)) then v7:CaptureController();v7:ClickButton2(Vector2.new());break;end end end);end end);local function v68(v209,v210,v211) local v212=0;while true do if (v212==0) then if  not v209 then return;end pcall(function() local v453=0 -0 ;local v454;local v455;while true do if (v453==(1726 -(1668 + 58))) then v454=v209.Container;if (v454 and v454:IsA("GuiObject")) then v454.Visible=v211;end v453=627 -(512 + 114) ;end if (v453==(5 -3)) then if (v455 and v455:IsA("TextLabel")) then local v568=0 -0 ;local v569;while true do if (v568==(3 -2)) then v569=v455:FindFirstChildOfClass("UITextSizeConstraint");if  not v569 then local v624=0 + 0 ;while true do if (v624==(0 + 0)) then v569=Instance.new("UITextSizeConstraint");v569.Parent=v455;break;end end end v568=2 + 0 ;end if (v568==(0 -0)) then v455.Text=v210;v455.TextScaled=true;v568=1995 -(109 + 1885) ;end if (v568==(1471 -(1269 + 200))) then v569.MaxTextSize=28 -13 ;v569.MinTextSize=12;break;end end end break;end if (v453==1) then v455=v209.Label;if ( not v455 and v454) then for v582,v583 in ipairs(v454:GetDescendants()) do if v583:IsA("TextLabel") then v455=v583;break;end end end v453=2;end end end);break;end end end local function v69(v213,v214,v215,v216) local v217=815 -(98 + 717) ;local v218;local v219;local v220;while true do if (v217==(827 -(802 + 24))) then v220=(v215 and (v215~="") and (" • "   .. v215   .. v219)) or v219 ;return string.format("%s (%s)%s",v213,v218,v220);end if ((0 -0)==v217) then v218=((v214>(0 -0)) and ("x"   .. v214)) or "HABIS" ;v219=(v216 and (v216>(0 + 0)) and string.format(" (-%d%%)",v216)) or "" ;v217=1 + 0 ;end end end local v70={};local function v71() table.clear(v44);local v221=v43[v42];local v222=v37 and v37.shops and v37.shops.shelves and v37.shops.shelves[v42] ;local v223=((v40>(0 + 0)) and ((1 + 0) -(v40/100))) or 1 ;local v224={};local v225={};if (v221 and ( #v221>(0 -0))) then for v409,v410 in ipairs(v221) do local v411=0;local v412;local v413;local v414;while true do if (v411==(0 -0)) then v412=(v410.id and v222 and (v222[v410.id]~=nil) and v222[v410.id]) or v410.qty ;v410.qty=v412;v411=1 + 0 ;end if (v411==(2 + 1)) then if v410.id then v225[v410.id]=true;end break;end if (v411==(1 + 0)) then v413=((v40>0) and v40) or v410.discPct or (0 + 0) ;v414=v410.priceStr;v411=1 + 1 ;end if (v411==(1435 -(797 + 636))) then if (v410.basePrice and (v413>0)) then v414=v52(math.floor((v410.basePrice * ((4 -3) -(v413/(1719 -(1427 + 192))))) + 0.5 + 0 ));end table.insert(v224,{id=v410.id,name=v410.name,qty=v412,priceStr=v414,discPct=v413});v411=6 -3 ;end end end end if v222 then local v377={};for v415 in pairs(v222) do if  not v225[v415] then table.insert(v377,v415);end end table.sort(v377);for v416,v417 in ipairs(v377) do local v418=v222[v417] or 0 ;local v419=v15[v417];local v420=(v419 and v419.name) or v417 ;local v421=v419 and v419.price ;local v422=(v421 and v52(math.floor((v421 * v223) + 0.5 + 0 ))) or "" ;table.insert(v224,{id=v417,name=v420,qty=v418,priceStr=v422,discPct=v40});end end if ( #v224>(0 + 0)) then for v423=327 -(192 + 134) ,v27 do local v424=1276 -(316 + 960) ;local v425;while true do if (v424==(0 + 0)) then v425=v224[v423];if v425 then local v561=0;while true do if (v561==(0 + 0)) then v44[v423]=v425;v68(v70[v423],v69(v425.name,v425.qty,v425.priceStr,v425.discPct),true);break;end end else v68(v70[v423],"",false);end break;end end end else for v426=1 + 0 ,v27 do if (v426<=4) then v68(v70[v426],string.format("Slot %d: Buka toko dulu / tunggu reset",v426),true);else v68(v70[v426],"",false);end end end end local function v72(v226,v227,v228) if (v32 or v33 or v34) then local v378=0 -0 ;while true do if (v378==0) then v1:Notify("Sedang proses aksi lain, tunggu sebentar...",553 -(83 + 468) );return;end end end local v229=v46();local v230=v17[v226];if ( not v229 or  not v230) then return;end v32=true;local v231=v229.CFrame;local v232=v15[v227];local v233=(v232 and v232.name) or v227 ;v229.CFrame=v230;task.wait(0.4);v45("storeBuy",{store=v226,item=v227});v1:Notify("✅ Membeli: "   .. v233   .. (((v228~="") and (" ("   .. v228   .. ")")) or "") ,2.5);task.wait(1806.25 -(1202 + 604) );if v46() then v46().CFrame=v231;end v32=false;end local v73={snack="Snack",tea="Es Teh",soda="Soda",coffee="Kopi Hitam",noodle="Mie Telur/Nasi Goreng",rice="Nasi (Minimart)"};local function v74(v235) if ( not v28.stockAlertEnabled or  not v235) then return;end local v236={};for v330,v331 in pairs(v73) do local v332=0 -0 ;local v333;while true do if (v332==0) then v333=v235[v330] or (0 -0) ;if (v333<v28.stockThreshold) then if ( not v38[v330] or ((os.clock() -v38[v330])>120)) then v38[v330]=os.clock();table.insert(v236,string.format("⚠️ **%s** tinggal %d",v331,v333));end else v38[v330]=nil;end break;end end end if ( #v236>(0 -0)) then local v380=table.concat(v236,"\n");if (v1 and v1.Notify) then v1:Notify("⚠️ Stok Hampir Habis!\n"   .. table.concat(v236,"\n") ,330 -(45 + 280) );end if v28.webhookEnabled then task.spawn(v67,"⚠️ Low Stock Alert — Warnetopia",v380,16130004 + 581676 );end end end local v75=v1:CreateWindow({Title="Warnetopia Hub 🖤 | Made by Realx13",Center=true,AutoShow=true,Size=UDim2.fromOffset(682 + 98 ,238 + 412 )});local v76=v75:AddTab("Auto Buy");local v77=v76:AddLeftGroupbox("⚙️ Auto Buy Rare");v77:AddToggle("autoBuyEnabled",{Text="Auto Buy Rare ON/OFF",Default=false,Tooltip="Aktifkan auto beli item langka dari toko kota",Callback=function(v237) v28.autoBuyEnabled=v237;end});v77:AddSlider("minTier",{Text="Minimum Tier",Min=1,Max=4,Default=2 + 1 ,Rounding=0 + 0 ,Tooltip="Hanya beli item dengan tier >= ini",Callback=function(v239) v28.minTier=v239;end});local v78=v76:AddLeftGroupbox("✨ Rarity Filter");v78:AddToggle("rarityLangka",{Text="Langka (★)",Default=true,Callback=function(v241) v28.rarityLangka=v241;end});v78:AddToggle("raritySangat",{Text="Sangat Langka (★★)",Default=true,Callback=function(v243) v28.raritySangat=v243;end});local v79=v76:AddRightGroupbox("🏪 Toko Rare Items");v79:AddToggle("store_computer",{Text="💻 Toko Komputer Jaya",Default=true,Callback=function(v245) v28.store_computer=v245;end});v79:AddToggle("store_furniture",{Text="🪑 Mebel Jati",Default=true,Callback=function(v247) v28.store_furniture=v247;end});v79:AddToggle("store_decor",{Text="🌿 Galeri Dekorasi",Default=true,Callback=function(v249) v28.store_decor=v249;end});local v80=v76:AddRightGroupbox("🛒 Minimart 24");v80:AddToggle("autoMinimartEnabled",{Text="Auto Restock Minimart",Default=false,Tooltip="Borong semua stok di Minimart 24",Callback=function(v251) v28.autoMinimartEnabled=v251;end});local v81=v75:AddTab("📊 Dashboard");local v82=v81:AddLeftGroupbox("💰 Stats Hari Ini");local v83=v82:AddLabel("📅 Hari: -");local v84=v82:AddLabel("💵 Saldo: -");local v85=v82:AddLabel("⭐ Rating: -");local v86=v82:AddLabel("👥 Pelanggan: -");local v87=v82:AddLabel("✅ Served: -");local v88=v82:AddLabel("😠 Kecewa: -");v82:AddDivider();local v89=v82:AddLabel("📈 Income: -");local v90=v82:AddLabel("  └ Billing: -");local v91=v82:AddLabel("  └ Makanan: -");local v92=v82:AddLabel("  └ Tips: -");v82:AddDivider();local v93=v82:AddLabel("🖥️ Sesi Aktif: -");local v94=v82:AddLabel("🕐 Antrean: -");local v95=v81:AddRightGroupbox("📦 Stok Kafe");local v96=v95:AddLabel("🍟 Snack: -");local v97=v95:AddLabel("🧊 Es Teh: -");local v98=v95:AddLabel("🥤 Soda: -");local v99=v95:AddLabel("☕ Kopi: -");local v100=v95:AddLabel("🍜 Mie/Nasi: -");v95:AddDivider();local v101=v81:AddRightGroupbox("⚠️ Low Stock Alert");v101:AddToggle("stockAlertEnabled",{Text="Aktifkan Stock Alert",Default=true,Tooltip="Kasih warning kalau stok menu kafe mau habis",Callback=function(v253) v28.stockAlertEnabled=v253;end});v101:AddSlider("stockThreshold",{Text="Threshold (warning kalau < X)",Min=9 -4 ,Max=1961 -(340 + 1571) ,Default=4 + 6 ,Rounding=1772 -(1733 + 39) ,Callback=function(v255) v28.stockThreshold=v255;end});v101:AddToggle("webhookStockAlert",{Text="Kirim Alert ke Discord",Default=false,Tooltip="Butuh Webhook URL di tab Settings",Callback=function(v257) v28.webhookEnabled=v257;end});local function v102(v259,v260) if (v259<=(0 -0)) then return " [HABIS!]";elseif (v259<v260) then return string.format(" [⚠️ %d]",v259);else return string.format(" [%d]",v259);end end local function v103(v261) if  not v261 then return;end pcall(function() v83:SetText("📅 Hari: "   .. tostring(v261.day or "-" ) );end);pcall(function() local v334=1034 -(125 + 909) ;local v335;local v336;while true do if (1==v334) then v84:SetText("💵 Saldo: "   .. v336 );break;end if (v334==(1948 -(1096 + 852))) then v335=v261.money or (0 + 0) ;v336="$"   .. tostring(v335):reverse():gsub("(%d%d%d)","%1."):reverse():gsub("^%.","") ;v334=1 -0 ;end end end);pcall(function() local v337=0;local v338;while true do if (v337==(0 + 0)) then v338=v261.rep or (512 -(409 + 103)) ;v85:SetText(string.format("⭐ Rating: %.2f",v338));break;end end end);if v261.today then local v381=236 -(46 + 190) ;local v382;while true do if (v381==(96 -(51 + 44))) then pcall(function() v87:SetText("✅ Served: "   .. tostring(v382.served or 0 ) );end);pcall(function() v88:SetText("😠 Kecewa: "   .. tostring(v382.angry or (0 + 0) ) );end);v381=1319 -(1114 + 203) ;end if (v381==(726 -(228 + 498))) then v382=v261.today;pcall(function() v86:SetText("👥 Pelanggan: "   .. tostring(v382.customers or 0 ) );end);v381=1;end if (v381==(1 + 1)) then if v382.income then local v538=0 + 0 ;local v539;local v540;local v541;local v542;local v543;local v544;while true do if (v538==(666 -(174 + 489))) then pcall(function() v91:SetText("  └ Makanan: "   .. v544(v540) );end);pcall(function() v92:SetText("  └ Tips: "   .. v544(v541) );end);break;end if (v538==(2 -1)) then v542=v382.income.other or (1905 -(830 + 1075)) ;v543=v539 + v540 + v541 + v542 ;v544=nil;v538=526 -(303 + 221) ;end if (v538==2) then function v544(v598) if (v598>=1000000) then return string.format("$%.1fJt",v598/1000000 );elseif (v598>=1000) then return string.format("$%.0fK",v598/1000 );else return "$"   .. v598 ;end end pcall(function() v89:SetText("📈 Income: "   .. v544(v543) );end);pcall(function() v90:SetText("  └ Billing: "   .. v544(v539) );end);v538=1272 -(231 + 1038) ;end if (v538==(0 + 0)) then v539=v382.income.billing or (1162 -(171 + 991)) ;v540=v382.income.food or (0 -0) ;v541=v382.income.tip or (0 -0) ;v538=2 -1 ;end end end break;end end end pcall(function() local v339=0;if v261.sessions then for v456 in pairs(v261.sessions) do v339=v339 + 1 + 0 ;end end v93:SetText("🖥️ Sesi Aktif: "   .. v339 );end);pcall(function() local v340=0;if v261.queue then for v457 in pairs(v261.queue) do v340=v340 + (3 -2) ;end end v94:SetText("🕐 Antrean: "   .. v340 );end);if v261.stock then local v383=v261.stock;local v384=v28.stockThreshold;pcall(function() v96:SetText("🍟 Snack"   .. v102(v383.snack or 0 ,v384) );end);pcall(function() v97:SetText("🧊 Es Teh"   .. v102(v383.tea or (0 -0) ,v384) );end);pcall(function() v98:SetText("🥤 Soda"   .. v102(v383.soda or (0 -0) ,v384) );end);pcall(function() v99:SetText("☕ Kopi"   .. v102(v383.coffee or (0 -0) ,v384) );end);pcall(function() v100:SetText("🍜 Mie/Nasi"   .. v102(v383.noodle or (1248 -(111 + 1137)) ,v384) );end);v74(v383);end end local v104=v75:AddTab("Toko Kota");local v105=v104:AddLeftGroupbox("⏰ Jadwal Restock");local v106=v105:AddLabel("Stok baru dalam: Buka 1x toko dulu");v105:AddDivider();v105:AddLabel("Semua toko kota reset bersamaan saat timer 00:00",true);v105:AddDivider();v105:AddButton({Text="🚀 TP ke Toko Terpilih",Func=function() local v262=158 -(91 + 67) ;local v263;local v264;while true do if (v262==(2 -1)) then if (v263 and v264) then v263.CFrame=v264;end break;end if (v262==(0 + 0)) then v263=v46();v264=v17[v42];v262=1;end end end,Tooltip="Teleport ke toko yang dipilih di kanan"});local v107=v104:AddLeftGroupbox("🥤 Es Teh Segar (Buff +60%)");local v108=v107:AddLabel("Status Buff: Mengecek...");v107:AddDropdown("esTehChoiceDropdown",{Values={"🧊 Es Teh Manis ($5.000 • 4 Jam)","🍊 Es Jeruk ($7.000 • 5.5 Jam)"},Default=1 + 1 ,Multi=false,Text="Pilih Menu:",Callback=function(v265) v28.esTehChoice=v21[v265] or "es_jeruk" ;end});v107:AddToggle("autoEsTehEnabled",{Text="Auto Beli Saat Buff Habis",Default=false,Callback=function(v267) v28.autoEsTehEnabled=v267;end});v107:AddButton({Text="🥤 Beli Sekarang (1x)",Func=function() task.spawn(v58,v28.esTehChoice,false);end});local v109=v104:AddRightGroupbox("🛍️ Beli Manual (Semua Toko)");v109:AddDropdown("selectedManualStore",{Values={"💻 Toko Komputer Jaya","🪑 Mebel Jati","🌿 Galeri Dekorasi","☕ Toko Alat Kafe","🛒 Minimart 24"},Default=1,Multi=false,Text="Pilih Toko:",Callback=function(v269) local v270=0 -0 ;while true do if (v270==0) then v42=v18[v269] or "computer" ;v71();break;end end end});v109:AddDivider();for v271=2 -1 ,v27 do local v272=0 -0 ;while true do if (v272==(711 -(530 + 181))) then v70[v271]=v109:AddButton({Text=("Slot %d: Menunggu data..."):format(v271),Func=function() local v458=881 -(614 + 267) ;local v459;while true do if (v458==(32 -(19 + 13))) then v459=v44[v271];if (v459 and v459.id) then if (v459.qty and (v459.qty<=(0 -0))) then v1:Notify("❌ Stok "   .. v459.name   .. " sudah HABIS!" ,4 -2 );else task.spawn(v72,v42,v459.id,v459.priceStr or "" );end else v1:Notify("Buka UI tokonya dulu / tunggu reset.",5.5 -3 );end break;end end end,Tooltip="Klik untuk TP & beli item ini 1x"});if (v271>4) then v68(v70[v271],"",false);else v68(v70[v271],("Slot %d: Menunggu data..."):format(v271),true);end break;end end end local v110=v75:AddTab("Auto Farm");local v111=v110:AddLeftGroupbox("🏪 Warnet");v111:AddToggle("autoOpenEnabled",{Text="Auto Buka Warnet",Default=false,Tooltip="Otomatis buka warnet kalau tiba-tiba TUTUP",Callback=function(v273) local v274=0 + 0 ;while true do if (v274==(0 -0)) then v28.autoOpenEnabled=v273;v29=nil;v274=1;end if (v274==1) then if (v273 and (v55()=="TUTUP")) then task.delay(1 -0 ,function() v45("setOpen",{open=true});end);end break;end end end});v111:AddToggle("autoDayEnabled",{Text="Auto Lanjut Hari",Default=false,Tooltip='Otomatis pencet "Lanjut ke Hari X" saat popup muncul',Callback=function(v275) v28.autoDayEnabled=v275;end});v111:AddToggle("autoPlaceEnabled",{Text="Auto Tempatkan Pelanggan",Default=false,Callback=function(v277) v28.autoPlaceEnabled=v277;end});v111:AddToggle("autoCleanEnabled",{Text="Auto Bersih Sampah",Default=false,Callback=function(v279) v28.autoCleanEnabled=v279;end});v111:AddToggle("autoServeEnabled",{Text="Auto Layani Semua Menu",Default=false,Tooltip="Otomatis masak & antar: Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda",Callback=function(v281) v28.autoServeEnabled=v281;end});local v112=v110:AddLeftGroupbox("⏱️ Delay");v112:AddSlider("reopenDelay",{Text="Reopen Delay (detik)",Min=1,Max=1827 -(1293 + 519) ,Default=6,Rounding=0,Callback=function(v283) v28.reopenDelay=v283;end});v112:AddSlider("continueDelay",{Text="Continue Delay (detik)",Min=1 -0 ,Max=26 -16 ,Default=2,Rounding=0 -0 ,Callback=function(v285) v28.continueDelay=v285;end});local v113=v110:AddRightGroupbox("🏃 Player & AFK");v113:AddToggle("antiAfkEnabled",{Text="🛡️ Anti AFK",Default=true,Callback=function(v287) v28.antiAfkEnabled=v287;end});v113:AddDivider();v113:AddToggle("walkSpeedEnabled",{Text="Custom WalkSpeed",Default=false,Callback=function(v289) local v290=0 -0 ;local v291;while true do if (v290==1) then if v291 then v291.WalkSpeed=(v289 and v28.walkSpeedValue) or 16 ;end break;end if (v290==(0 -0)) then v28.walkSpeedEnabled=v289;v291=v47();v290=1;end end end});v113:AddSlider("walkSpeedValue",{Text="WalkSpeed",Min=9 + 7 ,Max=31 + 119 ,Default=32,Rounding=0 -0 ,Callback=function(v292) local v293=0 + 0 ;while true do if (v293==(0 + 0)) then v28.walkSpeedValue=v292;if v28.walkSpeedEnabled then local v485=0 + 0 ;local v486;while true do if (v485==(1096 -(709 + 387))) then v486=v47();if v486 then v486.WalkSpeed=v292;end break;end end end break;end end end});local v114=v75:AddTab("Settings");local v115=v114:AddLeftGroupbox("🎨 Theme");v2:SetLibrary(v1);v2:SetFolder("WarnetopiaHub");v2:ApplyToGroupbox(v115);v3:SetLibrary(v1);v3:SetFolder("WarnetopiaHub/configs");v3:IgnoreThemeSettings();v3:SetIgnoreIndexes({"MenuKeybind","selectedManualStore"});v3:BuildConfigSection(v114);local v116=v114:AddRightGroupbox("🔔 Discord Webhook");v116:AddToggle("webhookEnabled",{Text="Kirim Notif Auto Buy",Default=false,Callback=function(v294) v28.webhookEnabled=v294;end});v116:AddInput("webhookUrlInput",{Default="",Numeric=false,Finished=false,Text="Webhook URL",Placeholder="https://discord.com/api/webhooks/...",Callback=function(v296) v28.webhookUrl=v296;end});v116:AddButton({Text="📨 Test Kirim Webhook",Func=function() task.spawn(function() local v341,v342=v67("✅ Webhook Terhubung!","Warnetopia Hub siap kirim notif.",5763719);v1:Notify(((v341 and "✅ ") or "❌ ")   .. v342 ,9 -6 );end);end});v3:LoadAutoloadConfig();local function v117(v298) local v299=0 -0 ;local v300;while true do if (v299==(0 + 0)) then if  not v298 then return nil;end v300=v298:gsub("%.%.%.",""):lower():gsub("^%s+",""):gsub("%s+$","");v299=1 + 0 ;end if (v299==1) then if (v300=="") then return nil;end if v16[v300] then return v16[v300];end v299=2 -0 ;end if ((1 + 1)==v299) then for v460,v461 in pairs(v16) do if (v460:sub(1 -0 , #v300)==v300) then return v461;end end return nil;end end end local function v118() local v301=0 -0 ;local v302;local v303;local v304;local v305;while true do if (v301==(1881 -(446 + 1434))) then v303=v302:FindFirstChild("WarnetopiaUI");if  not v303 then return;end v301=1285 -(1040 + 243) ;end if (v301==4) then if v304 then local v487=0 -0 ;local v488;local v489;while true do if (v487==(1847 -(559 + 1288))) then v488={};v489={};v487=1;end if (v487==(1932 -(609 + 1322))) then for v570,v571 in ipairs(v303:GetDescendants()) do if ((v571:IsA("TextButton") or v571:IsA("TextLabel")) and v571.Visible) then local v599=v571.Text or "" ;if ((v599=="Beli") or (v599=="Habis")) then local v615=454 -(13 + 441) ;local v616;while true do if (1==v615) then if (v616 and  not v489[v616]) then v489[v616]=true;local v657=((v599=="Habis") and (0 -0)) or nil ;local v658,v659=nil,math.huge;local v660,v661=nil,nil;for v665,v666 in ipairs(v616:GetDescendants()) do if (v666:IsA("TextLabel") and v666.Visible) then local v669=0;local v670;while true do if (v669==0) then v670=v666.Text or "" ;if v670:match("^Sisa%s*(%d+)") then v657=tonumber(v670:match("^Sisa%s*(%d+)"));elseif v670:match("^%$[%d%.%,]+") then local v672=0 -0 ;local v673;while true do if (v672==(0 -0)) then v673=v53(v670);if v673 then local v675=0;while true do if (v675==(0 + 0)) then if ( not v660 or (v673<v660)) then v660=v673;end if ( not v661 or (v673>v661)) then v661=v673;end break;end end end break;end end elseif ((v670~="") and (v670~="Beli") and (v670~="Habis") and  not v670:match("^x%d+") and  not v670:match("^T%d+$") and  not v670:find("Rare") and  not v670:find("Tip")) then if (v666.AbsolutePosition.Y<v659) then local v674=0 -0 ;while true do if (v674==0) then v659=v666.AbsolutePosition.Y;v658=v670;break;end end end end break;end end end end local v662=v40;if (v661 and v660 and (v661>v660)) then v662=math.floor((((v661-v660)/v661) * (36 + 64)) + 0.5 + 0 );if ((v662>(0 -0)) and (v40==(0 + 0))) then v40=v662;end end if v658 then table.insert(v488,{x=v616.AbsolutePosition.X,y=v616.AbsolutePosition.Y,title=v658,qty=v657 or (0 -0) ,price=v660,discPct=v662});end end break;end if (v615==(0 + 0)) then v616=v571.Parent;while v616 and v616:IsA("GuiObject")  do if ((v616.AbsoluteSize.X>=(48 + 37)) and (v616.AbsoluteSize.X<=260) and (v616.AbsoluteSize.Y>=115)) then break;end v616=v616.Parent;end v615=1 + 0 ;end end end end end if ( #v488>(0 + 0)) then local v585=0 + 0 ;local v586;while true do if (v585==0) then table.sort(v488,function(v625,v626) local v627=0;while true do if (v627==(433 -(153 + 280))) then if (math.abs(v625.y-v626.y )>25) then return v625.y<v626.y ;end return v625.x<v626.x ;end end end);v43[v304]=v43[v304] or {} ;v585=1;end if (v585==2) then for v628,v629 in ipairs(v488) do local v630=0 -0 ;local v631;local v632;local v633;local v634;local v635;local v636;local v637;while true do if (v630==1) then v633=(v631 and v631.name) or v629.title ;v634=v631 and v631.price ;v630=2 + 0 ;end if ((2 + 1)==v630) then v637={id=v632,name=v633,qty=v629.qty,basePrice=v634,priceStr=v636,discPct=v629.discPct};if (v632 and v586[v632]) then v43[v304][v586[v632]]=v637;else local v668=0;while true do if (v668==(0 + 0)) then table.insert(v43[v304],v637);if v632 then v586[v632]= #v43[v304];end break;end end end break;end if (v630==(0 + 0)) then v631=v117(v629.title);v632=(v631 and v631.id) or nil ;v630=1;end if (v630==2) then v635=v629.price or v634 ;v636=(v635 and v52(v635)) or "" ;v630=3 + 0 ;end end end if (v42==v304) then v71();end break;end if (v585==1) then v586={};for v638,v639 in ipairs(v43[v304]) do if v639.id then v586[v639.id]=v638;end end v585=2;end end end break;end end end break;end if (v301==(2 -0)) then v304=nil;v305=nil;v301=2 + 1 ;end if (v301==3) then for v462,v463 in ipairs(v303:GetDescendants()) do if (v463:IsA("TextLabel") and v463.Visible) then local v522=0;local v523;local v524;local v525;while true do if (v522==(669 -(89 + 578))) then if v20[v523] then v304=v20[v523];end break;end if (v522==1) then if (v524 and v525) then v39=os.clock() + (tonumber(v524) * 60) + tonumber(v525) ;end if (v523:find("Harga toko") or v523:find("Diskon") or v523:match("^%-%d+%%$")) then local v601=0;local v602;while true do if (v601==0) then v602=tonumber(v523:match("(%d+)%%"));if (v602 and (v602>(0 + 0)) and (v602<(207 -107))) then v305=v602;end break;end end end v522=1051 -(572 + 477) ;end if (v522==(0 + 0)) then v523=v463.Text or "" ;v524,v525=v523:match("Stok baru dalam%s*(%d+):(%d+)");v522=1 + 0 ;end end end end if v305 then v40=v305;elseif v304 then v40=0;end v301=4;end if (v301==(0 + 0)) then v302=v9:FindFirstChildOfClass("PlayerGui");if  not v302 then return;end v301=87 -(84 + 2) ;end end end local function v119(v306) local v307=0 -0 ;local v308;local v309;local v310;while true do if (v307==(0 + 0)) then if  not v306 then return false;end v308=v306.rarity or "biasa" ;v307=1;end if (v307==2) then if ( not v309 and  not v310) then return false;end if ((v306.tier~=nil) and v28.minTier and (v28.minTier>0)) then local v490=842 -(497 + 345) ;local v491;while true do if (v490==0) then v491=tonumber(v306.tier);if (v491 and (v491<v28.minTier)) then return false;end break;end end end v307=3;end if (v307==(1 + 2)) then return true;end if (v307==1) then v309=v28.rarityLangka and (v308=="langka") ;v310=v28.raritySangat and (v308=="sangat_langka") ;v307=1 + 1 ;end end end local function v120(v311) local v312=1333 -(605 + 728) ;local v313;local v314;local v315;local v316;while true do if ((1 + 0)==v312) then if v28.autoPlaceEnabled then task.spawn(function() pcall(v66);end);end if  not v311.shops then return;end for v464,v465 in pairs(v311.shops) do if ((type(v465)=="number") and (v465>(0 -0))) then if (v465>(45829 + 954171)) then local v563=v465-workspace:GetServerTimeNow() ;if ((v563>(0 -0)) and (v563<(3246 + 354))) then v39=os.clock() + v563 ;end elseif (v465<=(1662 -1062)) then v39=os.clock() + v465 ;end end end v312=2;end if (v312==6) then for v466,v467 in pairs(v313) do local v468=0 + 0 ;local v469;while true do if (v468==(489 -(457 + 32))) then v469=v17[v466];if v469 then local v572=0;while true do if ((1 + 0)==v572) then for v618,v619 in ipairs(v467) do local v620=((v466=="minimart") and v28.autoMinimartEnabled) or ((v466~="minimart") and v28.autoBuyEnabled) ;if  not v620 then break;end local v621=0;for v640=1,v619.qty do local v641=0;while true do if (v641==(1402 -(832 + 570))) then v45("storeBuy",{store=v466,item=v619.id});v621=v621 + 1 ;v641=1;end if (v641==(1 + 0)) then task.wait(0.25);break;end end end if (v621>(0 + 0)) then local v645=0 -0 ;local v646;local v647;local v648;while true do if (v645==1) then v648=(v646 and (v646.rarity=="sangat_langka") and " [★★]") or (v646 and (v646.rarity=="langka") and " [★]") or "" ;table.insert(v316,string.format("• **%s**%s (x%d) — *%s*",v647,v648,v621,v19[v466] or v466 ));break;end if (v645==(0 + 0)) then v646=v15[v619.id];v647=(v646 and v646.name) or v619.id ;v645=797 -(588 + 208) ;end end end end break;end if (v572==0) then v314.CFrame=v469;task.wait(0.45);v572=2 -1 ;end end end break;end end end task.wait(1800.2 -(884 + 916) );if v46() then v46().CFrame=v315;end v312=14 -7 ;end if (v312==0) then if  not v311 then return;end v37=v311;task.spawn(function() pcall(v103,v311);end);v312=1 + 0 ;end if (v312==(656 -(232 + 421))) then v313={};for v470,v471 in pairs(v311.shops.shelves or {} ) do if ((v470=="minimart") and v28.autoMinimartEnabled) then for v547,v548 in pairs(v471) do if (v548 and (v548>(1889 -(1569 + 320)))) then local v573=0;while true do if (v573==(0 + 0)) then v313[v470]=v313[v470] or {} ;table.insert(v313[v470],{id=v547,qty=v548});break;end end end end elseif v28.autoBuyEnabled then local v564=v26[v470];if (v564 and v28[v564]) then for v603,v604 in pairs(v471) do if (v604 and (v604>0)) then local v622=0;local v623;while true do if (v622==(0 + 0)) then v623=v15[v603];if v119(v623) then v313[v470]=v313[v470] or {} ;table.insert(v313[v470],{id=v603,qty=v604});end break;end end end end end end end if (next(v313)==nil) then return;end v312=4;end if (v312==(23 -16)) then v32=false;if (v28.webhookEnabled and ( #v316>(605 -(316 + 289)))) then task.spawn(v67,"🛒 Laporan Auto Buy Warnetopia",table.concat(v316,"\n"),41476137 -25631770 );end break;end if (v312==(1 + 3)) then v314=v46();if  not v314 then return;end v32=true;v312=1458 -(666 + 787) ;end if (v312==(430 -(360 + 65))) then v35=os.clock();v315=v314.CFrame;v316={};v312=6 + 0 ;end if ((256 -(79 + 175))==v312) then v71();if (( not v28.autoBuyEnabled and  not v28.autoMinimartEnabled) or v32 or v33 or v34) then return;end if ((os.clock() -v35)<(5 -1)) then return;end v312=3;end end end v13.OnClientEvent:Connect(function(v317) task.spawn(v120,v317);end);local v121=0 + 0 ;local v122=0;local v123=0;local v124=0;local v125=0;local v126=0 -0 ;v6.Heartbeat:Connect(function(v318) local v319=0 -0 ;local v320;local v321;while true do if (v319==1) then if v28.autoCleanEnabled then local v493=0;while true do if (v493==(899 -(503 + 396))) then v124=v124 + v318 ;if (v124>=(182.5 -(92 + 89))) then local v587=0 -0 ;while true do if (0==v587) then v124=0 + 0 ;task.spawn(function() pcall(v64);end);break;end end end break;end end end v126=v126 + v318 ;if (v126>=(1 + 0)) then local v494=0;local v495;local v496;while true do if (v494==(3 -2)) then if (v495 and v496) then v108:SetText("⚡ Aktif: "   .. v496 );else local v588=0;while true do if (v588==(0 + 0)) then v108:SetText("💤 Status Buff: Tidak aktif / Habis");if (v28.autoEsTehEnabled and  not v32 and  not v33 and  not v34 and ((os.clock() -v36)>=(13 -7))) then local v649=0;while true do if (v649==(0 + 0)) then v36=os.clock();task.spawn(v58,v28.esTehChoice,true);break;end end end break;end end end break;end if (v494==0) then v126=0 + 0 ;v495,v496=pcall(v57);v494=1;end end end v319=5 -3 ;end if (v319==3) then v122=v122 + v318 ;if (v122<(1 + 1)) then return;end v122=0 -0 ;v319=1248 -(485 + 759) ;end if (v319==(4 -2)) then v121=v121 + v318 ;if (v121>=(1189.5 -(442 + 747))) then local v497=0;while true do if (v497==1) then if v39 then local v589=1135 -(832 + 303) ;local v590;while true do if (v589==0) then v590=v39-os.clock() ;if (v590>0) then v106:SetText("⏰ Stok baru dalam: "   .. v54(v590) );else local v650=946 -(88 + 858) ;while true do if (v650==(0 + 0)) then table.clear(v43);v106:SetText("⏰ Sedang Restock (00:00)...");break;end end end break;end end end break;end if (v497==(0 + 0)) then v121=0 + 0 ;pcall(v118);v497=1;end end end if ( not v28.autoOpenEnabled and  not v28.autoDayEnabled) then local v498=0;while true do if (v498==(789 -(766 + 23))) then v29=nil;return;end end end v319=14 -11 ;end if (v319==(6 -1)) then v321=v55();if  not v321 then return;end if ((v29=="BUKA") and (v321=="TUTUP") and  not v30) then v30=true;task.delay(v28.reopenDelay,function() local v526=0 -0 ;while true do if (v526==(0 -0)) then if (v28.autoOpenEnabled and (v55()=="TUTUP")) then v45("setOpen",{open=true});end v30=false;break;end end end);end v319=1079 -(1036 + 37) ;end if (v319==(5 + 1)) then if ((v321=="TUTUP") and (v29==nil) and  not v30) then local v499=0 -0 ;while true do if (v499==(0 + 0)) then v30=true;task.delay(1481 -(641 + 839) ,function() local v574=913 -(910 + 3) ;while true do if (v574==0) then if (v28.autoOpenEnabled and (v55()=="TUTUP")) then v45("setOpen",{open=true});end v30=false;break;end end end);break;end end end v29=v321;break;end if (v319==4) then v320=(v28.autoDayEnabled and v56()) or nil ;if (v320 and  not v31) then local v500=0 -0 ;while true do if (v500==1) then return;end if (v500==0) then v31=true;task.delay(v28.continueDelay,function() local v575=1684 -(1466 + 218) ;local v576;while true do if (v575==1) then v31=false;break;end if (v575==(0 + 0)) then v576=v56();if (v28.autoDayEnabled and v576) then local v642=1148 -(556 + 592) ;while true do if (v642==(0 + 0)) then v49(v576);v45("dayContinue",{});v642=809 -(329 + 479) ;end if (v642==(855 -(174 + 680))) then task.delay(v28.reopenDelay,function() if (v28.autoOpenEnabled and (v55()=="TUTUP")) then v45("setOpen",{open=true});end end);break;end end end v575=1;end end end);v500=3 -2 ;end end end if  not v28.autoOpenEnabled then local v501=0 -0 ;while true do if ((0 + 0)==v501) then v29=nil;return;end end end v319=5;end if (v319==(739 -(396 + 343))) then if v28.walkSpeedEnabled then local v502=0;local v503;while true do if (v502==0) then v503=v47();if (v503 and (v503.WalkSpeed~=v28.walkSpeedValue)) then v503.WalkSpeed=v28.walkSpeedValue;end break;end end end if v28.autoPlaceEnabled then v123=v123 + v318 ;if (v123>=(0.6 + 0)) then v123=1477 -(29 + 1448) ;task.spawn(function() pcall(v66);end);end end if v28.autoServeEnabled then local v504=1389 -(135 + 1254) ;while true do if (v504==(0 -0)) then v125=v125 + v318 ;if (v125>=(4.2 -3)) then local v593=0;while true do if (v593==(0 + 0)) then v125=1527 -(389 + 1138) ;task.spawn(function() pcall(v63);end);break;end end end break;end end end v319=575 -(102 + 472) ;end end end);v3:LoadAutoloadConfig();local v127=game:GetService("UserInputService");if v127.TouchEnabled then local v343=Instance.new("ScreenGui");v343.Name="MobileToggle";v343.ResetOnSpawn=false;v343.DisplayOrder=999;v343.Parent=v9.PlayerGui;local v349=Instance.new("TextButton",v343);v349.Size=UDim2.fromOffset(48 + 2 ,28 + 22 );v349.Position=UDim2.new(0 + 0 ,1555 -(320 + 1225) ,0.5 -0 , -25);v349.BackgroundColor3=Color3.fromRGB(20,20,19 + 11 );v349.BackgroundTransparency=1464.3 -(157 + 1307) ;v349.BorderSizePixel=0;v349.Text="🖤";v349.TextSize=22;v349.Font=Enum.Font.GothamBold;v349.ZIndex=999;local v360=Instance.new("UICorner",v349);v360.CornerRadius=UDim.new(0,1871 -(821 + 1038) );local v362=Instance.new("UIStroke",v349);v362.Color=Color3.fromRGB(100,199 -119 ,150);v362.Thickness=1.5 + 0 ;local v365,v366,v367;v349.InputBegan:Connect(function(v385) if (v385.UserInputType==Enum.UserInputType.Touch) then local v472=0 -0 ;while true do if ((0 + 0)==v472) then v365=true;v366=v385.Position;v472=2 -1 ;end if (v472==1) then v367=v349.Position;break;end end end end);v349.InputChanged:Connect(function(v386) if (v365 and (v386.UserInputType==Enum.UserInputType.Touch)) then local v473=1026 -(834 + 192) ;local v474;while true do if (0==v473) then v474=v386.Position-v366 ;if ((math.abs(v474.X)>10) or (math.abs(v474.Y)>10)) then v349.Position=UDim2.new(v367.X.Scale,v367.X.Offset + v474.X ,v367.Y.Scale,v367.Y.Offset + v474.Y );end break;end end end end);v349.InputEnded:Connect(function(v387) if (v387.UserInputType==Enum.UserInputType.Touch) then local v475=0 + 0 ;local v476;while true do if ((1 + 0)==v475) then v365=false;break;end if (v475==(0 + 0)) then v476=v387.Position-(v366 or v387.Position) ;if ((math.abs(v476.X)<(15 -5)) and (math.abs(v476.Y)<(314 -(300 + 4)))) then v1:SetVisible( not v1.Visible);end v475=1 + 0 ;end end end end);print("[Hub] 📱 Mobile detected — tap tombol 🖤 di kiri tengah layar buat buka/tutup GUI");end v1:SetWatermark("Warnetopia Hub 🖤 | by Realx13");v1.Toggled=true;print("[Hub] 🖤 Warnetopia Hub loaded! RightShift = hide/show");
+-- ─── SERVICES ─────────────────────────────────────────────────────
+local Players           = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService        = game:GetService("RunService")
+local VirtualUser       = game:GetService("VirtualUser")
+local HttpService       = game:GetService("HttpService")
+local LocalPlayer       = Players.LocalPlayer
+
+local httpRequest = (syn and syn.request) or (http and http.request) or http_request or request
+
+-- ─── REMOTES ──────────────────────────────────────────────────────
+local Remotes  = ReplicatedStorage:WaitForChild("Remotes", 10)
+local Action   = Remotes:WaitForChild("Action", 10)
+local Snapshot = Remotes:WaitForChild("Snapshot", 10)
+
+-- ─── CATALOG ──────────────────────────────────────────────────────
+local Catalog = require(ReplicatedStorage.Shared.Data.Catalog)
+local BY_ID   = {}
+local BY_NAME = {}
+for _, item in ipairs(Catalog.ITEMS) do
+    BY_ID[item.id] = item
+    if item.name then BY_NAME[item.name:lower()] = item end
+end
+
+-- ─── KONSTANTA ────────────────────────────────────────────────────
+local STORE_LOCATIONS = {
+    computer  = CFrame.new(-135.6, 2.7, -4.9),
+    furniture = CFrame.new(-182.8, 2.7, -6.3),
+    decor     = CFrame.new(-26.1,  2.7, -42.2),
+    kitchen   = CFrame.new(-187.6, 2.7, -44.1),
+    minimart  = CFrame.new(91.7,   2.7, -5.2),
+    esteh     = CFrame.new(305.1,  2.7, -46.9),
+}
+
+local STORE_DISPLAY_TO_ID = {
+    ["💻 Toko Komputer Jaya"] = "computer",
+    ["🪑 Mebel Jati"]         = "furniture",
+    ["🌿 Galeri Dekorasi"]    = "decor",
+    ["☕ Toko Alat Kafe"]     = "kitchen",
+    ["🛒 Minimart 24"]        = "minimart",
+}
+
+local STORE_ID_TO_NAME = {
+    computer  = "Toko Komputer Jaya",
+    furniture = "Mebel Jati",
+    decor     = "Galeri Dekorasi",
+    kitchen   = "Toko Alat Kafe",
+    minimart  = "Minimart 24",
+}
+
+local UI_TITLE_TO_STORE_ID = {
+    ["Toko Komputer Jaya"] = "computer",
+    ["Mebel Jati"]         = "furniture",
+    ["Galeri Dekorasi"]    = "decor",
+    ["Toko Alat Kafe"]     = "kitchen",
+    ["Minimart 24"]        = "minimart",
+}
+
+local ESTEH_DISPLAY_TO_ID = {
+    ["🧊 Es Teh Manis ($5.000 • 4 Jam)"] = "es_teh",
+    ["🍊 Es Jeruk ($7.000 • 5.5 Jam)"]  = "es_jeruk",
+}
+
+local ESTEH_ID_TO_LABEL = {
+    es_teh   = "Es Teh Manis ($5.000)",
+    es_jeruk = "Es Jeruk ($7.000)",
+}
+
+-- Waktu masak per menu (detik)
+local COOK_DURATION = {
+    ["Buat Mie Telur"]   = 2.5,
+    ["Buat Nasi Goreng"] = 2.5,
+    ["Buat Snack"]       = 0.5,
+    ["Buat Kopi Hitam"]  = 1.0,
+    ["Buat Es Teh"]      = 0.8,
+    ["Buat Soda"]        = 0.8,
+}
+
+-- Menu masak: foodKey → { cook, station, switchNeeded }
+local FOOD_MAP = {
+    ["mie telur"]  = { cook = "Buat Mie Telur",  station = "stove",          switchNeeded = false },
+    ["nasi goreng"]= { cook = "Buat Nasi Goreng", station = "stove",          switchNeeded = true  },
+    ["snack"]      = { cook = "Buat Snack",       station = "snack_rack",     switchNeeded = false },
+    ["kopi hitam"] = { cook = "Buat Kopi Hitam",  station = "coffee_machine", switchNeeded = false },
+    ["es teh"]     = { cook = "Buat Es Teh",      station = "fridge",         switchNeeded = false },
+    ["soda"]       = { cook = "Buat Soda",        station = "fridge",         switchNeeded = true  },
+}
+
+local DELIVER_ACTIONS = {
+    "Antar Mie Telur", "Antar Nasi Goreng", "Antar Snack",
+    "Antar Kopi Hitam", "Antar Es Teh", "Antar Soda",
+}
+
+local RARE_STORE_MAP = {
+    computer  = "store_computer",
+    furniture = "store_furniture",
+    decor     = "store_decor",
+}
+
+local MAX_SLOTS = 15
+
+-- ─── CONFIG ───────────────────────────────────────────────────────
+local cfg = {
+    autoBuyEnabled      = false,
+    autoMinimartEnabled = false,
+    autoOpenEnabled     = false,
+    autoDayEnabled      = false,
+    autoPlaceEnabled    = false,
+    autoCleanEnabled    = false,
+    autoServeEnabled    = false,
+    autoEsTehEnabled    = false,
+    esTehChoice         = "es_jeruk",
+    walkSpeedEnabled    = false,
+    walkSpeedValue      = 32,
+    antiAfkEnabled      = true,
+    webhookUrl          = "",
+    stockAlertEnabled   = true,
+    stockThreshold      = 10,   -- warning kalau stok < angka ini
+    webhookEnabled      = false,
+    store_computer      = true,
+    store_furniture     = true,
+    store_decor         = true,
+    minTier             = 3,
+    rarityLangka        = true,
+    raritySangat        = true,
+    reopenDelay         = 6,
+    continueDelay       = 1.5,
+}
+
+-- ─── STATE ────────────────────────────────────────────────────────
+local lastStatus        = nil
+local reopenPending     = false
+local continuePending   = false
+local isBuying          = false
+local isCleaning        = false
+local isServing         = false
+local lastBuyCooldown   = 0
+local lastEsTehCooldown = 0
+local latestSnap        = nil
+local lastStockAlert    = {}   -- track item yang sudah di-alert biar ga spam
+local restockEndClock   = nil
+local discountPercent   = 0
+local assignedCooldowns = {}
+local selectedStoreId   = "computer"
+local storeOrderedUI    = {}
+local activeSlotItems   = {}
+
+-- ─── HELPERS DASAR ────────────────────────────────────────────────
+local function fireAction(action, data)
+    pcall(function() Action:FireServer(action, data or {}) end)
+end
+
+local function getHRP()
+    local char = LocalPlayer.Character
+    return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+local function getHumanoid()
+    local char = LocalPlayer.Character
+    return char and char:FindFirstChildOfClass("Humanoid")
+end
+
+local function isGuiTrulyVisible(obj)
+    if not obj or not obj:IsA("GuiObject") or not obj.Visible then return false end
+    local curr = obj.Parent
+    while curr and curr:IsA("GuiObject") do
+        if not curr.Visible then return false end
+        curr = curr.Parent
+    end
+    return true
+end
+
+local function clickGuiButton(btn)
+    if not btn or not firesignal then return end
+    pcall(function() firesignal(btn.MouseButton1Click) end)
+    pcall(function() firesignal(btn.Activated) end)
+end
+
+local function triggerPromptSafe(prompt)
+    if not prompt or not prompt.Parent or not prompt.Enabled then return end
+    if fireproximityprompt then
+        pcall(function() fireproximityprompt(prompt) end)
+    else
+        pcall(function() prompt:InputHoldBegin() end)
+        task.wait((prompt.HoldDuration or 0) + 0.15)
+        pcall(function() prompt:InputHoldEnd() end)
+    end
+end
+
+local function tpToPart(hrp, part, offset)
+    if not hrp or not part then return end
+    local pos = part:IsA("Model") and part:GetPivot().Position or part.Position
+    hrp.CFrame = CFrame.new(pos + (offset or Vector3.new(0, 2, 2)))
+    task.wait(0.3)
+end
+
+local function formatShortPrice(num)
+    if not num or type(num) ~= "number" then return "" end
+    if num >= 1000000 then
+        local jt = num / 1000000
+        return (jt % 1 == 0) and ("$"..jt.."Jt") or string.format("$%.2fJt", jt)
+    elseif num >= 1000 then
+        local k = num / 1000
+        return (k % 1 == 0) and ("$"..k.."K") or string.format("$%.1fK", k)
+    end
+    return "$"..tostring(num)
+end
+
+local function parsePriceText(txt)
+    if not txt then return nil end
+    return tonumber(txt:gsub("[^%d]", ""))
+end
+
+local function formatTime(sec)
+    sec = math.max(0, math.floor(sec))
+    return string.format("%02d:%02d", math.floor(sec/60), sec%60)
+end
+
+-- ─── HELPER: Status warnet ────────────────────────────────────────
+local function getStatus()
+    local gui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+    if not gui then return nil end
+    local ok, card = pcall(function()
+        return gui.WarnetopiaUI.Root.TL.TopRow.CafeCard
+    end)
+    if not ok or not card then return nil end
+    for _, d in ipairs(card:GetDescendants()) do
+        if d:IsA("TextLabel") then
+            local t = d.Text:upper()
+            if t == "BUKA" or t == "OPEN"  then return "BUKA"
+            elseif t == "TUTUP" or t == "CLOSED" then return "TUTUP" end
+        end
+    end
+    return nil
+end
+
+-- ─── HELPER: DayReport button ─────────────────────────────────────
+local function getDayReportButton()
+    local gui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+    if not gui then return nil end
+    for _, obj in ipairs(gui:GetDescendants()) do
+        if (obj:IsA("TextButton") or obj:IsA("TextLabel")) and (obj.Text or ""):find("Lanjut ke Hari") then
+            local btn = obj:IsA("GuiButton") and obj or obj:FindFirstAncestorWhichIsA("GuiButton")
+            if btn and isGuiTrulyVisible(btn) then return btn end
+        end
+    end
+    return nil
+end
+
+-- ─── HELPER: Es Teh Buff ──────────────────────────────────────────
+local function getFreshBuffText()
+    local gui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+    if not gui then return nil end
+    local ok, tl = pcall(function() return gui.WarnetopiaUI.Root.TL end)
+    if not ok or not tl then return nil end
+    for _, obj in ipairs(tl:GetDescendants()) do
+        if obj:IsA("TextLabel") and obj.Visible then
+            local txt = (obj.Text or ""):gsub("<[^>]+>", " "):gsub("%s+", " "):gsub("^%s+",""):gsub("%s+$","")
+            if txt:lower():find("segar") or txt:lower():find("fresh for") then
+                return txt:gsub("^[^%w]+", "")
+            end
+        end
+    end
+    return nil
+end
+
+local function buyEsTeh(itemId, isAuto)
+    if isBuying or isCleaning or isServing then return false end
+    local hrp = getHRP()
+    if not hrp then return false end
+    isBuying = true
+    local orig = hrp.CFrame
+    hrp.CFrame = STORE_LOCATIONS.esteh
+    task.wait(0.45)
+    fireAction("eat", { item = itemId, warung = "esteh" })
+    Library:Notify((isAuto and "🥤 Auto Buff: " or "✅ ") .. (ESTEH_ID_TO_LABEL[itemId] or itemId), 2.5)
+    task.wait(0.3)
+    if getHRP() then getHRP().CFrame = orig end
+    isBuying = false
+    return true
+end
+
+-- ─── HELPER: Proximity Prompts ────────────────────────────────────
+local function findCookPrompt(stationName, cookAction)
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") and obj.Enabled then
+            if (obj.Parent and obj.Parent.Name) == stationName and obj.ActionText == cookAction then
+                local p = obj.Parent
+                if p and (p:IsA("BasePart") or p:IsA("Model")) then
+                    return obj, p
+                end
+            end
+        end
+    end
+    return nil, nil
+end
+
+local function findSwitchPrompt(stationName)
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") and obj.Enabled then
+            if (obj.Parent and obj.Parent.Name) == stationName and obj.ActionText == "Ganti" then
+                local p = obj.Parent
+                if p and (p:IsA("BasePart") or p:IsA("Model")) then
+                    return obj, p
+                end
+            end
+        end
+    end
+    return nil, nil
+end
+
+local function findDeliverPrompt(foodKeyword)
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") and obj.Enabled then
+            local actionTxt = obj.ActionText or ""
+            local objectTxt = obj.ObjectText or ""
+            local objectLow = objectTxt:lower()
+            local isDeliver = false
+            for _, da in ipairs(DELIVER_ACTIONS) do
+                if actionTxt == da then isDeliver = true break end
+            end
+            if isDeliver then
+                if not foodKeyword or objectLow:find(foodKeyword:lower(), 1, true) then
+                    local p = obj.Parent
+                    if p and p:IsA("Attachment") then p = p.Parent end
+                    if p and (p:IsA("BasePart") or p:IsA("Model")) then
+                        return obj, p, actionTxt, objectTxt
+                    end
+                end
+            end
+        end
+    end
+    return nil, nil, nil, nil
+end
+
+local function findTrashPrompts()
+    local list = {}
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") and obj.Enabled then
+            local a = (obj.ActionText or ""):lower()
+            local o = (obj.ObjectText or ""):lower()
+            local n = (obj.Parent and obj.Parent.Name or ""):lower()
+            if a:find("bersih") or a:find("sampah") or a:find("clean") or a:find("trash")
+                or o:find("sampah") or n:find("trash") or n:find("sampah") then
+                local p = obj.Parent
+                if p and p:IsA("Attachment") then p = p.Parent end
+                if p and (p:IsA("BasePart") or p:IsA("Model")) then
+                    table.insert(list, { prompt = obj, part = p })
+                end
+            end
+        end
+    end
+    return list
+end
+
+-- ─── AUTO SERVE SEMUA MENU ────────────────────────────────────────
+local function processAutoServeAll()
+    if isServing or isBuying or isCleaning then return end
+
+    -- 1. Cari pelanggan — SIMPAN referensi dari pencarian pertama
+    local deliverPrompt, deliverPart, deliverAction, deliverObjectTxt = findDeliverPrompt(nil)
+    if not deliverPrompt or not deliverPart then return end
+
+    local foodKey  = (deliverAction:match("^Antar%s+(.+)$") or ""):lower()
+    local foodInfo = FOOD_MAP[foodKey]
+    local hrp      = getHRP()
+    if not hrp then return end
+
+    isServing = true
+    local originalCFrame = hrp.CFrame
+    local needSwitchBack = false
+
+    -- 2. Masak jika ada info alat masak
+    if foodInfo then
+        -- 2a. Ganti mode dulu kalau perlu (Nasi Goreng / Soda)
+        if foodInfo.switchNeeded then
+            local sw, swPart = findSwitchPrompt(foodInfo.station)
+            if sw and swPart then
+                tpToPart(hrp, swPart)
+                triggerPromptSafe(sw)
+                task.wait((sw.HoldDuration or 0) + 0.4)
+                needSwitchBack = true
+            end
+        end
+
+        -- 2b. Masak dengan durasi yang sesuai menu
+        local cp, cPart = findCookPrompt(foodInfo.station, foodInfo.cook)
+        if cp and cPart then
+            local curHrp = getHRP()
+            if curHrp then
+                tpToPart(curHrp, cPart)
+                triggerPromptSafe(cp)
+                -- FIX: pakai COOK_DURATION, bukan HoldDuration saja
+                local cookWait = COOK_DURATION[foodInfo.cook] or ((cp.HoldDuration or 0) + 0.5)
+                task.wait(cookWait)
+            end
+        end
+    end
+
+    -- 3. Antar ke pelanggan — PAKAI referensi dari pencarian pertama
+    if cfg.autoServeEnabled and not isBuying then
+        local promptStillValid = deliverPrompt and deliverPrompt.Parent and deliverPrompt.Enabled
+        if promptStillValid then
+            local curHrp = getHRP()
+            if curHrp then
+                tpToPart(curHrp, deliverPart)
+                triggerPromptSafe(deliverPrompt)
+                task.wait((deliverPrompt.HoldDuration or 0) + 0.4)
+            end
+        else
+            -- Fallback: cari ulang pelanggan menu yang sama
+            local dp2, pp2, _, _ = findDeliverPrompt(foodKey ~= "" and foodKey or nil)
+            if dp2 and pp2 then
+                local curHrp = getHRP()
+                if curHrp then
+                    tpToPart(curHrp, pp2)
+                    triggerPromptSafe(dp2)
+                    task.wait((dp2.HoldDuration or 0) + 0.4)
+                end
+            end
+        end
+    end
+
+    -- 4. Balik ke posisi awal
+    if getHRP() and not isBuying and not isCleaning then
+        getHRP().CFrame = originalCFrame
+    end
+
+    -- 5. FIX: Set isServing = false SEBELUM switch balik
+    --    Supaya loop berikutnya tidak terblokir
+    isServing = false
+
+    -- 6. Switch balik kompor/kulkas ke default SETELAH isServing = false
+    if needSwitchBack and foodInfo then
+        task.spawn(function()
+            task.wait(0.3)
+            local defaultCook = (foodInfo.station == "stove") and "Buat Mie Telur" or "Buat Es Teh"
+            local defP, _ = findCookPrompt(foodInfo.station, defaultCook)
+            if not defP then
+                local sw2, sw2Part = findSwitchPrompt(foodInfo.station)
+                if sw2 and sw2Part then
+                    local curHrp = getHRP()
+                    if curHrp then
+                        tpToPart(curHrp, sw2Part)
+                        triggerPromptSafe(sw2)
+                    end
+                end
+            end
+        end)
+    end
+end
+
+-- ─── AUTO BERSIH SAMPAH ───────────────────────────────────────────
+local function processAutoClean()
+    if isCleaning or isBuying or isServing then return end
+    local hrp = getHRP()
+    if not hrp then return end
+    local trashList = findTrashPrompts()
+    if #trashList == 0 then return end
+    isCleaning = true
+    local orig = hrp.CFrame
+    for _, item in ipairs(trashList) do
+        if not cfg.autoCleanEnabled or isBuying or isServing then break end
+        local prompt, part = item.prompt, item.part
+        if prompt and prompt.Parent and prompt.Enabled and part and part.Parent then
+            local curHrp = getHRP()
+            if curHrp then
+                tpToPart(curHrp, part)
+                triggerPromptSafe(prompt)
+                task.wait((prompt.HoldDuration or 0) + 0.35)
+            end
+        end
+    end
+    if getHRP() and not isBuying and not isServing then getHRP().CFrame = orig end
+    isCleaning = false
+end
+
+-- ─── AUTO TEMPATKAN PELANGGAN ─────────────────────────────────────
+local function collectQueueIds(node, visited, results, depth)
+    if type(node) ~= "table" or visited[node] or depth > 5 then return end
+    visited[node] = true
+    if type(node.id) == "string" and #node.id >= 8 and #node.id <= 24 then
+        if node.hours or node.patience or node.name or node.want then
+            results[node.id] = true
+        end
+    end
+    for k, v in pairs(node) do
+        if type(v) == "table" and k ~= "shops" and k ~= "inventory" and k ~= "desks" then
+            collectQueueIds(v, visited, results, depth + 1)
+        end
+    end
+end
+
+local function processAutoPlace()
+    local now = os.clock()
+    local fired = false
+    if latestSnap then
+        local queueIds = {}
+        collectQueueIds(latestSnap, {}, queueIds, 0)
+        for custId in pairs(queueIds) do
+            if now - (assignedCooldowns[custId] or 0) >= 2.5 then
+                assignedCooldowns[custId] = now
+                fireAction("assign", { id = custId, desk = "auto" })
+                fired = true
+                task.wait(0.15)
+            end
+        end
+    end
+    if fired then return end
+
+    local gui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+    if not gui then return end
+    local ui = gui:FindFirstChild("WarnetopiaUI") or gui
+    for _, obj in ipairs(ui:GetDescendants()) do
+        if (obj:IsA("TextButton") or obj:IsA("TextLabel")) and obj.Text == "Otomatis" then
+            local btn = obj:IsA("GuiButton") and obj or obj:FindFirstAncestorWhichIsA("GuiButton")
+            if btn and isGuiTrulyVisible(btn) then clickGuiButton(btn) return end
+        end
+    end
+
+    local topBtn, topY = nil, math.huge
+    for _, obj in ipairs(ui:GetDescendants()) do
+        if (obj:IsA("TextButton") or obj:IsA("TextLabel")) and obj.Text == "Tempatkan" then
+            local btn = obj:IsA("GuiButton") and obj or obj:FindFirstAncestorWhichIsA("GuiButton")
+            if btn and isGuiTrulyVisible(btn) and btn.AbsolutePosition.Y < topY then
+                topY = btn.AbsolutePosition.Y
+                topBtn = btn
+            end
+        end
+    end
+    if topBtn then clickGuiButton(topBtn) end
+end
+
+-- ─── WEBHOOK ──────────────────────────────────────────────────────
+local function sendWebhook(title, description, colorHex)
+    if not httpRequest then return false, "Executor tidak support HTTP" end
+    local url = (cfg.webhookUrl or ""):gsub("^%s+",""):gsub("%s+$","")
+    if url == "" or not url:find("^https://") then return false, "URL tidak valid" end
+    local payload = {
+        username = "Warnetopia Notifier",
+        embeds = {{ title=title, description=description, color=colorHex or 3447003,
+            footer = { text = "Player: "..LocalPlayer.Name.." • "..os.date("%H:%M:%S") }
+        }}
+    }
+    local ok, res = pcall(function()
+        return httpRequest({ Url=url, Method="POST",
+            Headers={ ["Content-Type"]="application/json" },
+            Body=HttpService:JSONEncode(payload) })
+    end)
+    if ok and res and (res.StatusCode==200 or res.StatusCode==204) then return true, "Terkirim!" end
+    return false, "Gagal kirim"
+end
+
+-- ─── ANTI AFK ─────────────────────────────────────────────────────
+LocalPlayer.Idled:Connect(function()
+    if cfg.antiAfkEnabled then
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end)
+    end
+end)
+
+-- ─── MANUAL BUY HELPERS ───────────────────────────────────────────
+local function setButtonState(btnObj, newText, isVisible)
+    if not btnObj then return end
+    pcall(function()
+        local container = btnObj.Container
+        if container and container:IsA("GuiObject") then
+            container.Visible = isVisible
+        end
+        local lbl = btnObj.Label
+        if not lbl and container then
+            for _, d in ipairs(container:GetDescendants()) do
+                if d:IsA("TextLabel") then lbl = d break end
+            end
+        end
+        if lbl and lbl:IsA("TextLabel") then
+            lbl.Text = newText
+            lbl.TextScaled = true
+            local c = lbl:FindFirstChildOfClass("UITextSizeConstraint")
+            if not c then c = Instance.new("UITextSizeConstraint") c.Parent = lbl end
+            c.MaxTextSize = 15
+            c.MinTextSize = 12
+        end
+    end)
+end
+
+local function buildButtonLabel(name, qty, priceStr, discPct)
+    local statusStr = qty > 0 and ("x"..qty) or "HABIS"
+    local discTag   = (discPct and discPct > 0) and string.format(" (-%d%%)", discPct) or ""
+    local pricePart = (priceStr and priceStr ~= "") and (" • "..priceStr..discTag) or discTag
+    return string.format("%s (%s)%s", name, statusStr, pricePart)
+end
+
+local StoreSlotButtons = {}
+
+local function refreshManualStoreSlots()
+    table.clear(activeSlotItems)
+    local orderedList = storeOrderedUI[selectedStoreId]
+    local snapShelf   = latestSnap and latestSnap.shops and latestSnap.shops.shelves
+                        and latestSnap.shops.shelves[selectedStoreId]
+    local mult = (discountPercent > 0) and (1 - discountPercent/100) or 1
+
+    local finalItems = {}
+    local seenIds = {}
+
+    if orderedList and #orderedList > 0 then
+        for _, entry in ipairs(orderedList) do
+            local liveQty = (entry.id and snapShelf and snapShelf[entry.id] ~= nil) and snapShelf[entry.id] or entry.qty
+            entry.qty = liveQty
+            local itemDisc = (discountPercent > 0) and discountPercent or (entry.discPct or 0)
+            local finalPriceStr = entry.priceStr
+            if entry.basePrice and itemDisc > 0 then
+                finalPriceStr = formatShortPrice(math.floor(entry.basePrice * (1 - itemDisc/100) + 0.5))
+            end
+            table.insert(finalItems, { id=entry.id, name=entry.name, qty=liveQty, priceStr=finalPriceStr, discPct=itemDisc })
+            if entry.id then seenIds[entry.id] = true end
+        end
+    end
+
+    if snapShelf then
+        local extraIds = {}
+        for itemId in pairs(snapShelf) do
+            if not seenIds[itemId] then table.insert(extraIds, itemId) end
+        end
+        table.sort(extraIds)
+        for _, itemId in ipairs(extraIds) do
+            local qty = snapShelf[itemId] or 0
+            local itemInfo = BY_ID[itemId]
+            local displayName = (itemInfo and itemInfo.name) or itemId
+            local basePrice = itemInfo and itemInfo.price
+            local finalPriceStr = basePrice and formatShortPrice(math.floor(basePrice * mult + 0.5)) or ""
+            table.insert(finalItems, { id=itemId, name=displayName, qty=qty, priceStr=finalPriceStr, discPct=discountPercent })
+        end
+    end
+
+    if #finalItems > 0 then
+        for i = 1, MAX_SLOTS do
+            local item = finalItems[i]
+            if item then
+                activeSlotItems[i] = item
+                setButtonState(StoreSlotButtons[i], buildButtonLabel(item.name, item.qty, item.priceStr, item.discPct), true)
+            else
+                setButtonState(StoreSlotButtons[i], "", false)
+            end
+        end
+    else
+        for i = 1, MAX_SLOTS do
+            if i <= 4 then
+                setButtonState(StoreSlotButtons[i], string.format("Slot %d: Buka toko dulu / tunggu reset", i), true)
+            else
+                setButtonState(StoreSlotButtons[i], "", false)
+            end
+        end
+    end
+end
+
+local function buySingleItemManual(storeId, itemId, priceStr)
+    if isBuying or isCleaning or isServing then
+        Library:Notify("Sedang proses aksi lain, tunggu sebentar...", 2)
+        return
+    end
+    local hrp = getHRP()
+    local targetCFrame = STORE_LOCATIONS[storeId]
+    if not hrp or not targetCFrame then return end
+    isBuying = true
+    local orig = hrp.CFrame
+    local itemInfo = BY_ID[itemId]
+    local itemName = (itemInfo and itemInfo.name) or itemId
+    hrp.CFrame = targetCFrame
+    task.wait(0.4)
+    fireAction("storeBuy", { store=storeId, item=itemId })
+    Library:Notify("✅ Membeli: "..itemName..(priceStr~="" and " ("..priceStr..")" or ""), 2.5)
+    task.wait(0.25)
+    if getHRP() then getHRP().CFrame = orig end
+    isBuying = false
+end
+
+-- ─── STOCK ALERT ─────────────────────────────────────────────────
+local STOCK_LABELS = {
+    snack  = "Snack",
+    tea    = "Es Teh",
+    soda   = "Soda",
+    coffee = "Kopi Hitam",
+    noodle = "Mie Telur/Nasi Goreng",
+    rice   = "Nasi (Minimart)",
+}
+
+local function checkStockAlert(stock)
+    if not cfg.stockAlertEnabled or not stock then return end
+    local alerts = {}
+    for key, label in pairs(STOCK_LABELS) do
+        local qty = stock[key] or 0
+        if qty < cfg.stockThreshold then
+            if not lastStockAlert[key] or (os.clock() - lastStockAlert[key]) > 120 then
+                lastStockAlert[key] = os.clock()
+                table.insert(alerts, string.format("⚠️ **%s** tinggal %d", label, qty))
+            end
+        else
+            lastStockAlert[key] = nil -- reset alert kalau udah diisi
+        end
+    end
+    if #alerts > 0 then
+        local msg = table.concat(alerts, "\n")
+        -- Notify in-game
+        if Library and Library.Notify then
+            Library:Notify("⚠️ Stok Hampir Habis!\n" .. table.concat(alerts, "\n"), 5)
+        end
+        -- Webhook
+        if cfg.webhookEnabled then
+            task.spawn(sendWebhook, "⚠️ Low Stock Alert — Warnetopia", msg, 16711680)
+        end
+    end
+end
+
+-- ─── BUILD LINORIA UI ─────────────────────────────────────────────
+local Window = Library:CreateWindow({
+    Title    = 'Warnetopia Hub 🖤 | Made by Realx13',
+    Center   = true,
+    AutoShow = true,
+    Size     = UDim2.fromOffset(780, 650),
+})
+
+-- ══ TAB 1: AUTO BUY ══════════════════════════════════════════════
+local BuyTab  = Window:AddTab('Auto Buy')
+local BuyBox  = BuyTab:AddLeftGroupbox('⚙️ Auto Buy Rare')
+
+BuyBox:AddToggle('autoBuyEnabled', {
+    Text='Auto Buy Rare ON/OFF', Default=false,
+    Tooltip='Aktifkan auto beli item langka dari toko kota',
+    Callback=function(val) cfg.autoBuyEnabled = val end,
+})
+BuyBox:AddSlider('minTier', {
+    Text='Minimum Tier', Min=1, Max=4, Default=3, Rounding=0,
+    Tooltip='Hanya beli item dengan tier >= ini',
+    Callback=function(val) cfg.minTier = val end,
+})
+
+local RarityBox = BuyTab:AddLeftGroupbox('✨ Rarity Filter')
+RarityBox:AddToggle('rarityLangka', {
+    Text='Langka (★)', Default=true,
+    Callback=function(val) cfg.rarityLangka = val end,
+})
+RarityBox:AddToggle('raritySangat', {
+    Text='Sangat Langka (★★)', Default=true,
+    Callback=function(val) cfg.raritySangat = val end,
+})
+
+local TokoBox = BuyTab:AddRightGroupbox('🏪 Toko Rare Items')
+TokoBox:AddToggle('store_computer', {
+    Text='💻 Toko Komputer Jaya', Default=true,
+    Callback=function(val) cfg.store_computer = val end,
+})
+TokoBox:AddToggle('store_furniture', {
+    Text='🪑 Mebel Jati', Default=true,
+    Callback=function(val) cfg.store_furniture = val end,
+})
+TokoBox:AddToggle('store_decor', {
+    Text='🌿 Galeri Dekorasi', Default=true,
+    Callback=function(val) cfg.store_decor = val end,
+})
+
+local MinimartBox = BuyTab:AddRightGroupbox('🛒 Minimart 24')
+MinimartBox:AddToggle('autoMinimartEnabled', {
+    Text='Auto Restock Minimart', Default=false,
+    Tooltip='Borong semua stok di Minimart 24',
+    Callback=function(val) cfg.autoMinimartEnabled = val end,
+})
+
+-- ══ TAB: DASHBOARD ═══════════════════════════════════════════════
+local DashTab = Window:AddTab('📊 Dashboard')
+local StatsBox = DashTab:AddLeftGroupbox('💰 Stats Hari Ini')
+
+local LabelDay        = StatsBox:AddLabel('📅 Hari: -')
+local LabelMoney      = StatsBox:AddLabel('💵 Saldo: -')
+local LabelRating     = StatsBox:AddLabel('⭐ Rating: -')
+local LabelCustomers  = StatsBox:AddLabel('👥 Pelanggan: -')
+local LabelServed     = StatsBox:AddLabel('✅ Served: -')
+local LabelAngry      = StatsBox:AddLabel('😠 Kecewa: -')
+StatsBox:AddDivider()
+local LabelIncome     = StatsBox:AddLabel('📈 Income: -')
+local LabelBilling    = StatsBox:AddLabel('  └ Billing: -')
+local LabelFood       = StatsBox:AddLabel('  └ Makanan: -')
+local LabelTip        = StatsBox:AddLabel('  └ Tips: -')
+StatsBox:AddDivider()
+local LabelSessions   = StatsBox:AddLabel('🖥️ Sesi Aktif: -')
+local LabelQueue      = StatsBox:AddLabel('🕐 Antrean: -')
+
+local StockBox = DashTab:AddRightGroupbox('📦 Stok Kafe')
+
+local LabelStockSnack  = StockBox:AddLabel('🍟 Snack: -')
+local LabelStockTea    = StockBox:AddLabel('🧊 Es Teh: -')
+local LabelStockSoda   = StockBox:AddLabel('🥤 Soda: -')
+local LabelStockCoffee = StockBox:AddLabel('☕ Kopi: -')
+local LabelStockNoodle = StockBox:AddLabel('🍜 Mie/Nasi: -')
+StockBox:AddDivider()
+
+local AlertBox = DashTab:AddRightGroupbox('⚠️ Low Stock Alert')
+AlertBox:AddToggle('stockAlertEnabled', {
+    Text     = 'Aktifkan Stock Alert',
+    Default  = true,
+    Tooltip  = 'Kasih warning kalau stok menu kafe mau habis',
+    Callback = function(val) cfg.stockAlertEnabled = val end,
+})
+AlertBox:AddSlider('stockThreshold', {
+    Text     = 'Threshold (warning kalau < X)',
+    Min      = 5,
+    Max      = 50,
+    Default  = 10,
+    Rounding = 0,
+    Callback = function(val) cfg.stockThreshold = val end,
+})
+AlertBox:AddToggle('webhookStockAlert', {
+    Text     = 'Kirim Alert ke Discord',
+    Default  = false,
+    Tooltip  = 'Butuh Webhook URL di tab Settings',
+    Callback = function(val) cfg.webhookEnabled = val end,
+})
+
+-- Helper: warna label stok
+local function stockLabel(qty, threshold)
+    if qty <= 0 then return " [HABIS!]"
+    elseif qty < threshold then return string.format(" [⚠️ %d]", qty)
+    else return string.format(" [%d]", qty) end
+end
+
+-- Update dashboard dari snap
+local function updateDashboard(snap)
+    if not snap then return end
+
+    -- Hari & uang
+    pcall(function() LabelDay:SetText("📅 Hari: " .. tostring(snap.day or "-")) end)
+    pcall(function()
+        local m = snap.money or 0
+        local formatted = "$" .. tostring(m):reverse():gsub("(%d%d%d)", "%1."):reverse():gsub("^%.", "")
+        LabelMoney:SetText("💵 Saldo: " .. formatted)
+    end)
+
+    -- Rating
+    pcall(function()
+        local rep = snap.rep or 0
+        LabelRating:SetText(string.format("⭐ Rating: %.2f", rep))
+    end)
+
+    -- Today stats
+    if snap.today then
+        local t = snap.today
+        pcall(function() LabelCustomers:SetText("👥 Pelanggan: " .. tostring(t.customers or 0)) end)
+        pcall(function() LabelServed:SetText("✅ Served: " .. tostring(t.served or 0)) end)
+        pcall(function() LabelAngry:SetText("😠 Kecewa: " .. tostring(t.angry or 0)) end)
+
+        if t.income then
+            local billing = t.income.billing or 0
+            local food    = t.income.food or 0
+            local tip     = t.income.tip or 0
+            local other   = t.income.other or 0
+            local total   = billing + food + tip + other
+            local function fmt(n)
+                if n >= 1000000 then return string.format("$%.1fJt", n/1000000)
+                elseif n >= 1000 then return string.format("$%.0fK", n/1000)
+                else return "$"..n end
+            end
+            pcall(function() LabelIncome:SetText("📈 Income: " .. fmt(total)) end)
+            pcall(function() LabelBilling:SetText("  └ Billing: " .. fmt(billing)) end)
+            pcall(function() LabelFood:SetText("  └ Makanan: " .. fmt(food)) end)
+            pcall(function() LabelTip:SetText("  └ Tips: " .. fmt(tip)) end)
+        end
+    end
+
+    -- Sessions & queue
+    pcall(function()
+        local sesCount = 0
+        if snap.sessions then
+            for _ in pairs(snap.sessions) do sesCount = sesCount + 1 end
+        end
+        LabelSessions:SetText("🖥️ Sesi Aktif: " .. sesCount)
+    end)
+    pcall(function()
+        local qCount = 0
+        if snap.queue then
+            for _ in pairs(snap.queue) do qCount = qCount + 1 end
+        end
+        LabelQueue:SetText("🕐 Antrean: " .. qCount)
+    end)
+
+    -- Stok kafe
+    if snap.stock then
+        local s = snap.stock
+        local thr = cfg.stockThreshold
+        pcall(function() LabelStockSnack:SetText("🍟 Snack" .. stockLabel(s.snack or 0, thr)) end)
+        pcall(function() LabelStockTea:SetText("🧊 Es Teh" .. stockLabel(s.tea or 0, thr)) end)
+        pcall(function() LabelStockSoda:SetText("🥤 Soda" .. stockLabel(s.soda or 0, thr)) end)
+        pcall(function() LabelStockCoffee:SetText("☕ Kopi" .. stockLabel(s.coffee or 0, thr)) end)
+        pcall(function() LabelStockNoodle:SetText("🍜 Mie/Nasi" .. stockLabel(s.noodle or 0, thr)) end)
+        -- Check alert
+        checkStockAlert(s)
+    end
+end
+
+-- ══ TAB 2: TOKO KOTA ═════════════════════════════════════════════
+local CafeTab  = Window:AddTab('Toko Kota')
+local TimerBox = CafeTab:AddLeftGroupbox('⏰ Jadwal Restock')
+local RestockTimerLabel = TimerBox:AddLabel('Stok baru dalam: Buka 1x toko dulu')
+TimerBox:AddDivider()
+TimerBox:AddLabel('Semua toko kota reset bersamaan saat timer 00:00', true)
+TimerBox:AddDivider()
+TimerBox:AddButton({
+    Text='🚀 TP ke Toko Terpilih',
+    Func=function()
+        local hrp = getHRP()
+        local target = STORE_LOCATIONS[selectedStoreId]
+        if hrp and target then hrp.CFrame = target end
+    end,
+    Tooltip='Teleport ke toko yang dipilih di kanan',
+})
+
+local EsTehBox = CafeTab:AddLeftGroupbox('🥤 Es Teh Segar (Buff +60%)')
+local EsTehStatusLabel = EsTehBox:AddLabel('Status Buff: Mengecek...')
+EsTehBox:AddDropdown('esTehChoiceDropdown', {
+    Values={'🧊 Es Teh Manis ($5.000 • 4 Jam)','🍊 Es Jeruk ($7.000 • 5.5 Jam)'},
+    Default=2, Multi=false, Text='Pilih Menu:',
+    Callback=function(val) cfg.esTehChoice = ESTEH_DISPLAY_TO_ID[val] or "es_jeruk" end,
+})
+EsTehBox:AddToggle('autoEsTehEnabled', {
+    Text='Auto Beli Saat Buff Habis', Default=false,
+    Callback=function(val) cfg.autoEsTehEnabled = val end,
+})
+EsTehBox:AddButton({
+    Text='🥤 Beli Sekarang (1x)',
+    Func=function() task.spawn(buyEsTeh, cfg.esTehChoice, false) end,
+})
+
+local ManualShopBox = CafeTab:AddRightGroupbox('🛍️ Beli Manual (Semua Toko)')
+ManualShopBox:AddDropdown('selectedManualStore', {
+    Values={'💻 Toko Komputer Jaya','🪑 Mebel Jati','🌿 Galeri Dekorasi','☕ Toko Alat Kafe','🛒 Minimart 24'},
+    Default=1, Multi=false, Text='Pilih Toko:',
+    Callback=function(val)
+        selectedStoreId = STORE_DISPLAY_TO_ID[val] or "computer"
+        refreshManualStoreSlots()
+    end,
+})
+ManualShopBox:AddDivider()
+
+for i = 1, MAX_SLOTS do
+    StoreSlotButtons[i] = ManualShopBox:AddButton({
+        Text=('Slot %d: Menunggu data...'):format(i),
+        Func=function()
+            local slotData = activeSlotItems[i]
+            if slotData and slotData.id then
+                if slotData.qty and slotData.qty <= 0 then
+                    Library:Notify("❌ Stok "..slotData.name.." sudah HABIS!", 2)
+                else
+                    task.spawn(buySingleItemManual, selectedStoreId, slotData.id, slotData.priceStr or "")
+                end
+            else
+                Library:Notify("Buka UI tokonya dulu / tunggu reset.", 2.5)
+            end
+        end,
+        Tooltip='Klik untuk TP & beli item ini 1x',
+    })
+    if i > 4 then setButtonState(StoreSlotButtons[i], "", false)
+    else setButtonState(StoreSlotButtons[i], ('Slot %d: Menunggu data...'):format(i), true) end
+end
+
+-- ══ TAB 3: AUTO OPEN & WARNET ════════════════════════════════════
+local OpenTab = Window:AddTab('Auto Farm')
+local OpenBox = OpenTab:AddLeftGroupbox('🏪 Warnet')
+
+OpenBox:AddToggle('autoOpenEnabled', {
+    Text='Auto Buka Warnet', Default=false,
+    Tooltip='Otomatis buka warnet kalau tiba-tiba TUTUP',
+    Callback=function(val)
+        cfg.autoOpenEnabled = val
+        lastStatus = nil
+        if val and getStatus() == "TUTUP" then
+            task.delay(1, function() fireAction("setOpen", {open=true}) end)
+        end
+    end,
+})
+OpenBox:AddToggle('autoDayEnabled', {
+    Text='Auto Lanjut Hari', Default=false,
+    Tooltip='Otomatis pencet "Lanjut ke Hari X" saat popup muncul',
+    Callback=function(val) cfg.autoDayEnabled = val end,
+})
+OpenBox:AddToggle('autoPlaceEnabled', {
+    Text='Auto Tempatkan Pelanggan', Default=false,
+    Callback=function(val) cfg.autoPlaceEnabled = val end,
+})
+OpenBox:AddToggle('autoCleanEnabled', {
+    Text='Auto Bersih Sampah', Default=false,
+    Callback=function(val) cfg.autoCleanEnabled = val end,
+})
+OpenBox:AddToggle('autoServeEnabled', {
+    Text='Auto Layani Semua Menu', Default=false,
+    Tooltip='Otomatis masak & antar: Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda',
+    Callback=function(val) cfg.autoServeEnabled = val end,
+})
+
+local DelayBox = OpenTab:AddLeftGroupbox('⏱️ Delay')
+DelayBox:AddSlider('reopenDelay', {
+    Text='Reopen Delay (detik)', Min=1, Max=15, Default=6, Rounding=0,
+    Callback=function(val) cfg.reopenDelay = val end,
+})
+DelayBox:AddSlider('continueDelay', {
+    Text='Continue Delay (detik)', Min=1, Max=10, Default=2, Rounding=0,
+    Callback=function(val) cfg.continueDelay = val end,
+})
+
+local PlayerBox = OpenTab:AddRightGroupbox('🏃 Player & AFK')
+PlayerBox:AddToggle('antiAfkEnabled', {
+    Text='🛡️ Anti AFK', Default=true,
+    Callback=function(val) cfg.antiAfkEnabled = val end,
+})
+PlayerBox:AddDivider()
+PlayerBox:AddToggle('walkSpeedEnabled', {
+    Text='Custom WalkSpeed', Default=false,
+    Callback=function(val)
+        cfg.walkSpeedEnabled = val
+        local hum = getHumanoid()
+        if hum then hum.WalkSpeed = val and cfg.walkSpeedValue or 16 end
+    end,
+})
+PlayerBox:AddSlider('walkSpeedValue', {
+    Text='WalkSpeed', Min=16, Max=150, Default=32, Rounding=0,
+    Callback=function(val)
+        cfg.walkSpeedValue = val
+        if cfg.walkSpeedEnabled then
+            local hum = getHumanoid()
+            if hum then hum.WalkSpeed = val end
+        end
+    end,
+})
+
+-- ══ TAB 4: SETTINGS ══════════════════════════════════════════════
+local SettingsTab = Window:AddTab('Settings')
+local SettingsBox = SettingsTab:AddLeftGroupbox('🎨 Theme')
+ThemeManager:SetLibrary(Library)
+ThemeManager:SetFolder('WarnetopiaHub')
+ThemeManager:ApplyToGroupbox(SettingsBox)
+
+SaveManager:SetLibrary(Library)
+SaveManager:SetFolder('WarnetopiaHub/configs')
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({'MenuKeybind','selectedManualStore'})
+SaveManager:BuildConfigSection(SettingsTab)
+
+local WebhookBox = SettingsTab:AddRightGroupbox('🔔 Discord Webhook')
+WebhookBox:AddToggle('webhookEnabled', {
+    Text='Kirim Notif Auto Buy', Default=false,
+    Callback=function(val) cfg.webhookEnabled = val end,
+})
+WebhookBox:AddInput('webhookUrlInput', {
+    Default='', Numeric=false, Finished=false,
+    Text='Webhook URL', Placeholder='https://discord.com/api/webhooks/...',
+    Callback=function(val) cfg.webhookUrl = val end,
+})
+WebhookBox:AddButton({
+    Text='📨 Test Kirim Webhook',
+    Func=function()
+        task.spawn(function()
+            local ok, msg = sendWebhook("✅ Webhook Terhubung!", "Warnetopia Hub siap kirim notif.", 5763719)
+            Library:Notify((ok and "✅ " or "❌ ")..msg, 3)
+        end)
+    end,
+})
+
+SaveManager:LoadAutoloadConfig()
+
+-- ─── SYNC DARI GAME UI ────────────────────────────────────────────
+local function resolveItemByDisplayName(rawName)
+    if not rawName then return nil end
+    local clean = rawName:gsub("%.%.%.", ""):lower():gsub("^%s+",""):gsub("%s+$","")
+    if clean == "" then return nil end
+    if BY_NAME[clean] then return BY_NAME[clean] end
+    for nameLower, item in pairs(BY_NAME) do
+        if nameLower:sub(1, #clean) == clean then return item end
+    end
+    return nil
+end
+
+local function syncFromGameUI()
+    local gui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+    if not gui then return end
+    local ui = gui:FindFirstChild("WarnetopiaUI")
+    if not ui then return end
+
+    local detectedStoreId = nil
+    local foundDiscNum    = nil
+
+    for _, obj in ipairs(ui:GetDescendants()) do
+        if obj:IsA("TextLabel") and obj.Visible then
+            local txt = obj.Text or ""
+            local mStr, sStr = txt:match("Stok baru dalam%s*(%d+):(%d+)")
+            if mStr and sStr then
+                restockEndClock = os.clock() + (tonumber(mStr)*60) + tonumber(sStr)
+            end
+            if txt:find("Harga toko") or txt:find("Diskon") or txt:match("^%-%d+%%$") then
+                local pct = tonumber(txt:match("(%d+)%%"))
+                if pct and pct > 0 and pct < 100 then foundDiscNum = pct end
+            end
+            if UI_TITLE_TO_STORE_ID[txt] then detectedStoreId = UI_TITLE_TO_STORE_ID[txt] end
+        end
+    end
+
+    if foundDiscNum then discountPercent = foundDiscNum
+    elseif detectedStoreId then discountPercent = 0 end
+
+    if detectedStoreId then
+        local cards = {}
+        local seenParents = {}
+        for _, obj in ipairs(ui:GetDescendants()) do
+            if (obj:IsA("TextButton") or obj:IsA("TextLabel")) and obj.Visible then
+                local t = obj.Text or ""
+                if t == "Beli" or t == "Habis" then
+                    local cardFrame = obj.Parent
+                    while cardFrame and cardFrame:IsA("GuiObject") do
+                        if cardFrame.AbsoluteSize.X >= 85 and cardFrame.AbsoluteSize.X <= 260 and cardFrame.AbsoluteSize.Y >= 115 then break end
+                        cardFrame = cardFrame.Parent
+                    end
+                    if cardFrame and not seenParents[cardFrame] then
+                        seenParents[cardFrame] = true
+                        local qtyNum = (t == "Habis") and 0 or nil
+                        local bestTitle, bestY = nil, math.huge
+                        local lowestPrice, highestPrice = nil, nil
+                        for _, child in ipairs(cardFrame:GetDescendants()) do
+                            if child:IsA("TextLabel") and child.Visible then
+                                local ct = child.Text or ""
+                                if ct:match("^Sisa%s*(%d+)") then
+                                    qtyNum = tonumber(ct:match("^Sisa%s*(%d+)"))
+                                elseif ct:match("^%$[%d%.%,]+") then
+                                    local parsed = parsePriceText(ct)
+                                    if parsed then
+                                        if not lowestPrice or parsed < lowestPrice then lowestPrice = parsed end
+                                        if not highestPrice or parsed > highestPrice then highestPrice = parsed end
+                                    end
+                                elseif ct ~= "" and ct ~= "Beli" and ct ~= "Habis"
+                                    and not ct:match("^x%d+") and not ct:match("^T%d+$")
+                                    and not ct:find("Rare") and not ct:find("Tip") then
+                                    if child.AbsolutePosition.Y < bestY then
+                                        bestY = child.AbsolutePosition.Y
+                                        bestTitle = ct
+                                    end
+                                end
+                            end
+                        end
+
+                        local cardDisc = discountPercent
+                        if highestPrice and lowestPrice and highestPrice > lowestPrice then
+                            cardDisc = math.floor(((highestPrice - lowestPrice) / highestPrice) * 100 + 0.5)
+                            if cardDisc > 0 and discountPercent == 0 then discountPercent = cardDisc end
+                        end
+
+                        if bestTitle then
+                            table.insert(cards, { x=cardFrame.AbsolutePosition.X, y=cardFrame.AbsolutePosition.Y,
+                                title=bestTitle, qty=qtyNum or 0, price=lowestPrice, discPct=cardDisc })
+                        end
+                    end
+                end
+            end
+        end
+
+        if #cards > 0 then
+            table.sort(cards, function(a, b)
+                if math.abs(a.y - b.y) > 25 then return a.y < b.y end
+                return a.x < b.x
+            end)
+
+            storeOrderedUI[detectedStoreId] = storeOrderedUI[detectedStoreId] or {}
+            local existingMap = {}
+            for idx, oldEntry in ipairs(storeOrderedUI[detectedStoreId]) do
+                if oldEntry.id then existingMap[oldEntry.id] = idx end
+            end
+
+            for _, c in ipairs(cards) do
+                local resolved = resolveItemByDisplayName(c.title)
+                local itemId = resolved and resolved.id or nil
+                local displayName = (resolved and resolved.name) or c.title
+                local basePrice = resolved and resolved.price
+                local finalPrice = c.price or basePrice
+                local pStr = finalPrice and formatShortPrice(finalPrice) or ""
+                local newEntry = { id=itemId, name=displayName, qty=c.qty, basePrice=basePrice, priceStr=pStr, discPct=c.discPct }
+                if itemId and existingMap[itemId] then
+                    storeOrderedUI[detectedStoreId][existingMap[itemId]] = newEntry
+                else
+                    table.insert(storeOrderedUI[detectedStoreId], newEntry)
+                    if itemId then existingMap[itemId] = #storeOrderedUI[detectedStoreId] end
+                end
+            end
+
+            if selectedStoreId == detectedStoreId then refreshManualStoreSlots() end
+        end
+    end
+end
+
+-- ─── AUTO BUY LOGIC ───────────────────────────────────────────────
+local function rareItemMatches(item)
+    if not item then return false end
+    local r = item.rarity or "biasa"
+    local wantLangka = cfg.rarityLangka and r == "langka"
+    local wantSangat = cfg.raritySangat and r == "sangat_langka"
+    if not wantLangka and not wantSangat then return false end
+    if item.tier ~= nil and cfg.minTier and cfg.minTier > 0 then
+        local tier = tonumber(item.tier)
+        if tier and tier < cfg.minTier then return false end
+    end
+    return true
+end
+
+local function processSnap(snap)
+    if not snap then return end
+    latestSnap = snap
+    task.spawn(function() pcall(updateDashboard, snap) end)
+
+    if cfg.autoPlaceEnabled then
+        task.spawn(function() pcall(processAutoPlace) end)
+    end
+
+    if not snap.shops then return end
+
+    -- Update restock timer dari snap
+    for k, v in pairs(snap.shops) do
+        if type(v) == "number" and v > 0 then
+            if v > 1000000 then
+                local rem = v - workspace:GetServerTimeNow()
+                if rem > 0 and rem < 3600 then restockEndClock = os.clock() + rem end
+            elseif v <= 600 then
+                restockEndClock = os.clock() + v
+            end
+        end
+    end
+
+    refreshManualStoreSlots()
+
+    if (not cfg.autoBuyEnabled and not cfg.autoMinimartEnabled) or isBuying or isCleaning or isServing then return end
+    if os.clock() - lastBuyCooldown < 4 then return end
+
+    local purchaseQueue = {}
+
+    for storeId, shelf in pairs(snap.shops.shelves or {}) do
+        if storeId == "minimart" and cfg.autoMinimartEnabled then
+            for itemId, qty in pairs(shelf) do
+                if qty and qty > 0 then
+                    purchaseQueue[storeId] = purchaseQueue[storeId] or {}
+                    table.insert(purchaseQueue[storeId], { id=itemId, qty=qty })
+                end
+            end
+        elseif cfg.autoBuyEnabled then
+            local cfgKey = RARE_STORE_MAP[storeId]
+            if cfgKey and cfg[cfgKey] then
+                for itemId, qty in pairs(shelf) do
+                    if qty and qty > 0 then
+                        local item = BY_ID[itemId]
+                        if rareItemMatches(item) then
+                            purchaseQueue[storeId] = purchaseQueue[storeId] or {}
+                            table.insert(purchaseQueue[storeId], { id=itemId, qty=qty })
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if next(purchaseQueue) == nil then return end
+
+    local hrp = getHRP()
+    if not hrp then return end
+
+    isBuying = true
+    lastBuyCooldown = os.clock()
+    local originalCFrame = hrp.CFrame
+    local boughtLog = {}
+
+    for storeId, items in pairs(purchaseQueue) do
+        local targetCFrame = STORE_LOCATIONS[storeId]
+        if targetCFrame then
+            hrp.CFrame = targetCFrame
+            task.wait(0.45)
+            for _, itemData in ipairs(items) do
+                local stillEnabled = (storeId == "minimart" and cfg.autoMinimartEnabled)
+                                  or (storeId ~= "minimart" and cfg.autoBuyEnabled)
+                if not stillEnabled then break end
+                local boughtCount = 0
+                for i = 1, itemData.qty do
+                    fireAction("storeBuy", { store=storeId, item=itemData.id })
+                    boughtCount = boughtCount + 1
+                    task.wait(0.25)
+                end
+                if boughtCount > 0 then
+                    local itemInfo = BY_ID[itemData.id]
+                    local itemName = (itemInfo and itemInfo.name) or itemData.id
+                    local rarityTag = (itemInfo and itemInfo.rarity == "sangat_langka" and " [★★]")
+                                   or (itemInfo and itemInfo.rarity == "langka" and " [★]") or ""
+                    table.insert(boughtLog, string.format("• **%s**%s (x%d) — *%s*",
+                        itemName, rarityTag, boughtCount, STORE_ID_TO_NAME[storeId] or storeId))
+                end
+            end
+        end
+    end
+
+    task.wait(0.2)
+    if getHRP() then getHRP().CFrame = originalCFrame end
+    isBuying = false
+
+    if cfg.webhookEnabled and #boughtLog > 0 then
+        task.spawn(sendWebhook, "🛒 Laporan Auto Buy Warnetopia", table.concat(boughtLog, "\n"), 15844367)
+    end
+end
+
+Snapshot.OnClientEvent:Connect(function(snap)
+    task.spawn(processSnap, snap)
+end)
+
+-- ─── MAIN HEARTBEAT ───────────────────────────────────────────────
+local uiTimer    = 0
+local checkTimer = 0
+local placeTimer = 0
+local cleanTimer = 0
+local serveTimer = 0
+local esTehTimer = 0
+
+RunService.Heartbeat:Connect(function(dt)
+    -- WalkSpeed
+    if cfg.walkSpeedEnabled then
+        local hum = getHumanoid()
+        if hum and hum.WalkSpeed ~= cfg.walkSpeedValue then
+            hum.WalkSpeed = cfg.walkSpeedValue
+        end
+    end
+
+    -- Auto Place
+    if cfg.autoPlaceEnabled then
+        placeTimer = placeTimer + dt
+        if placeTimer >= 0.6 then
+            placeTimer = 0
+            task.spawn(function() pcall(processAutoPlace) end)
+        end
+    end
+
+    -- Auto Serve All Menu
+    if cfg.autoServeEnabled then
+        serveTimer = serveTimer + dt
+        if serveTimer >= 1.2 then
+            serveTimer = 0
+            task.spawn(function() pcall(processAutoServeAll) end)
+        end
+    end
+
+    -- Auto Clean
+    if cfg.autoCleanEnabled then
+        cleanTimer = cleanTimer + dt
+        if cleanTimer >= 1.5 then
+            cleanTimer = 0
+            task.spawn(function() pcall(processAutoClean) end)
+        end
+    end
+
+    -- Es Teh Buff
+    esTehTimer = esTehTimer + dt
+    if esTehTimer >= 1.0 then
+        esTehTimer = 0
+        local ok, buffTxt = pcall(getFreshBuffText)
+        if ok and buffTxt then
+            EsTehStatusLabel:SetText("⚡ Aktif: " .. buffTxt)
+        else
+            EsTehStatusLabel:SetText("💤 Status Buff: Tidak aktif / Habis")
+            if cfg.autoEsTehEnabled and not isBuying and not isCleaning and not isServing
+                and (os.clock() - lastEsTehCooldown >= 6) then
+                lastEsTehCooldown = os.clock()
+                task.spawn(buyEsTeh, cfg.esTehChoice, true)
+            end
+        end
+    end
+
+    -- UI Sync & Restock Timer
+    uiTimer = uiTimer + dt
+    if uiTimer >= 0.5 then
+        uiTimer = 0
+        pcall(syncFromGameUI)
+        if restockEndClock then
+            local rem = restockEndClock - os.clock()
+            if rem > 0 then
+                RestockTimerLabel:SetText("⏰ Stok baru dalam: " .. formatTime(rem))
+            else
+                table.clear(storeOrderedUI)
+                RestockTimerLabel:SetText("⏰ Sedang Restock (00:00)...")
+            end
+        end
+    end
+
+    -- Auto Open / Day
+    if not cfg.autoOpenEnabled and not cfg.autoDayEnabled then
+        lastStatus = nil
+        return
+    end
+
+    checkTimer = checkTimer + dt
+    if checkTimer < 2 then return end
+    checkTimer = 0
+
+    local dayBtn = cfg.autoDayEnabled and getDayReportButton() or nil
+    if dayBtn and not continuePending then
+        continuePending = true
+        task.delay(cfg.continueDelay, function()
+            local btn = getDayReportButton()
+            if cfg.autoDayEnabled and btn then
+                clickGuiButton(btn)
+                fireAction("dayContinue", {})
+                task.delay(cfg.reopenDelay, function()
+                    if cfg.autoOpenEnabled and getStatus() == "TUTUP" then
+                        fireAction("setOpen", { open=true })
+                    end
+                end)
+            end
+            continuePending = false
+        end)
+        return
+    end
+
+    if not cfg.autoOpenEnabled then lastStatus = nil return end
+
+    local status = getStatus()
+    if not status then return end
+
+    if lastStatus == "BUKA" and status == "TUTUP" and not reopenPending then
+        reopenPending = true
+        task.delay(cfg.reopenDelay, function()
+            if cfg.autoOpenEnabled and getStatus() == "TUTUP" then
+                fireAction("setOpen", { open=true })
+            end
+            reopenPending = false
+        end)
+    end
+
+    if status == "TUTUP" and lastStatus == nil and not reopenPending then
+        reopenPending = true
+        task.delay(1, function()
+            if cfg.autoOpenEnabled and getStatus() == "TUTUP" then
+                fireAction("setOpen", { open=true })
+            end
+            reopenPending = false
+        end)
+    end
+
+    lastStatus = status
+end)
+
+SaveManager:LoadAutoloadConfig()
+
+
+-- ─── MOBILE TOGGLE BUTTON ────────────────────────────────────────
+local UIS = game:GetService("UserInputService")
+if UIS.TouchEnabled then
+    local MobileGui = Instance.new("ScreenGui")
+    MobileGui.Name           = "MobileToggle"
+    MobileGui.ResetOnSpawn   = false
+    MobileGui.DisplayOrder   = 9999
+    MobileGui.IgnoreGuiInset = true
+    MobileGui.Parent         = LocalPlayer.PlayerGui
+
+    local Btn = Instance.new("TextButton", MobileGui)
+    Btn.Size                 = UDim2.fromOffset(55, 55)
+    Btn.Position             = UDim2.new(0, 12, 0.5, -27)
+    Btn.BackgroundColor3     = Color3.fromRGB(20, 20, 30)
+    Btn.BackgroundTransparency = 0.2
+    Btn.BorderSizePixel      = 0
+    Btn.Text                 = "🖤"
+    Btn.TextSize             = 24
+    Btn.Font                 = Enum.Font.GothamBold
+    Btn.ZIndex               = 9999
+    Btn.AutoButtonColor      = false
+
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 14)
+    local stroke = Instance.new("UIStroke", Btn)
+    stroke.Color     = Color3.fromRGB(120, 90, 180)
+    stroke.Thickness = 2
+
+    -- State
+    local isDragging  = false
+    local dragStartPos = Vector2.new()
+    local btnStartPos  = UDim2.new()
+    local DRAG_THRESHOLD = 8  -- pixel, dibawah ini = tap bukan drag
+
+    -- Touch began
+    Btn.TouchLongPress:Connect(function() end) -- dummy biar touch events aktif
+
+    local conn1 = UIS.TouchStarted:Connect(function(touch, processed)
+        -- Cek apakah touch di atas tombol
+        local btnAbs = Btn.AbsolutePosition
+        local btnSz  = Btn.AbsoluteSize
+        local tx, ty = touch.Position.X, touch.Position.Y
+        if tx >= btnAbs.X and tx <= btnAbs.X + btnSz.X
+        and ty >= btnAbs.Y and ty <= btnAbs.Y + btnSz.Y then
+            isDragging    = true
+            dragStartPos  = Vector2.new(tx, ty)
+            btnStartPos   = Btn.Position
+        end
+    end)
+
+    local conn2 = UIS.TouchMoved:Connect(function(touch, processed)
+        if not isDragging then return end
+        local delta = Vector2.new(touch.Position.X, touch.Position.Y) - dragStartPos
+        -- Update posisi tombol real-time
+        Btn.Position = UDim2.new(
+            btnStartPos.X.Scale,
+            btnStartPos.X.Offset + delta.X,
+            btnStartPos.Y.Scale,
+            btnStartPos.Y.Offset + delta.Y
+        )
+    end)
+
+    local conn3 = UIS.TouchEnded:Connect(function(touch, processed)
+        if not isDragging then return end
+        local delta = Vector2.new(touch.Position.X, touch.Position.Y) - dragStartPos
+        local dist  = math.sqrt(delta.X^2 + delta.Y^2)
+
+        -- Kalau jarak < threshold = ini tap, toggle GUI
+        if dist < DRAG_THRESHOLD then
+            local isVisible = Library.Toggled
+            Library:SetVisible(not isVisible)
+        end
+
+        isDragging = false
+    end)
+
+    -- Fallback: MouseButton1Click buat kasus executor yang override touch jadi mouse
+    Btn.MouseButton1Click:Connect(function()
+        if not UIS.TouchEnabled then return end -- skip kalau bukan mobile
+        Library:SetVisible(not Library.Toggled)
+    end)
+
+    print("[Hub] 📱 Mobile detected — tap 🖤 di kiri layar buat buka/tutup GUI, drag buat pindahin")
+end
+
+Library:SetWatermark('Warnetopia Hub 🖤 | by Realx13')
+Library.Toggled = true
+
+print('[Hub] 🖤 Warnetopia Hub loaded! RightShift = hide/show')
