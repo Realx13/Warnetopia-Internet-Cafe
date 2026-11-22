@@ -1477,7 +1477,6 @@ SaveManager:LoadAutoloadConfig()
 -- ─── MOBILE TOGGLE BUTTON ────────────────────────────────────────
 local UIS = game:GetService("UserInputService")
 if UIS.TouchEnabled then
-    -- Hapus tombol lama kalau ada
     local existing = LocalPlayer.PlayerGui:FindFirstChild("MobileToggle")
     if existing then existing:Destroy() end
 
@@ -1488,103 +1487,87 @@ if UIS.TouchEnabled then
     MobileGui.IgnoreGuiInset = true
     MobileGui.Parent         = LocalPlayer.PlayerGui
 
-    -- Tombol toggle GUI
     local Btn = Instance.new("TextButton")
-    Btn.Name                 = "ToggleBtn"
-    Btn.Size                 = UDim2.fromOffset(60, 60)
-    Btn.Position             = UDim2.new(0, 8, 0.5, -30)
-    Btn.BackgroundColor3     = Color3.fromRGB(15, 15, 25)
+    Btn.Name                   = "ToggleBtn"
+    Btn.Size                   = UDim2.fromOffset(60, 60)
+    Btn.Position               = UDim2.new(0, 8, 0.5, -30)
+    Btn.BackgroundColor3       = Color3.fromRGB(15, 15, 25)
     Btn.BackgroundTransparency = 0.1
-    Btn.BorderSizePixel      = 0
-    Btn.Text                 = "🖤"
-    Btn.TextSize             = 26
-    Btn.Font                 = Enum.Font.GothamBold
-    Btn.ZIndex               = 9999
-    Btn.AutoButtonColor      = false
-    Btn.Parent               = MobileGui
+    Btn.BorderSizePixel        = 0
+    Btn.Text                   = "🖤"
+    Btn.TextSize               = 26
+    Btn.Font                   = Enum.Font.GothamBold
+    Btn.ZIndex                 = 9999
+    Btn.AutoButtonColor        = false
+    Btn.Modal                  = true  -- KUNCI: blok touch tembus ke game
+    Btn.Parent                 = MobileGui
 
     Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 14)
-
     local stroke = Instance.new("UIStroke", Btn)
     stroke.Color     = Color3.fromRGB(120, 90, 200)
     stroke.Thickness = 2.5
     stroke.Parent    = Btn
 
-    -- State drag
+    -- State
+    local guiVisible   = true
     local isDragging   = false
     local movedPixels  = 0
-    local touchId      = nil
-    local startTouchPos = Vector2.new()
-    local startBtnPos   = UDim2.new()
+    local startTouch   = Vector2.new()
+    local startBtnPos  = UDim2.new()
+    local touchActive  = false
 
-    -- Pakai Activated untuk tap (paling reliable di semua executor mobile)
-    Btn.Activated:Connect(function()
-        if isDragging then return end
-        -- Toggle visibility LinoriaLib
-        Library.Toggled = not Library.Toggled
-        -- Coba semua cara toggle yang mungkin dipakai executor
-        pcall(function() Library:SetVisible(Library.Toggled) end)
-        pcall(function()
-            local mainGui = LocalPlayer.PlayerGui:FindFirstChild("LinoriaLib")
-                         or LocalPlayer.PlayerGui:FindFirstChildWhichIsA("ScreenGui")
-            -- Cari LinoriaLib ScreenGui
-            for _, g in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
-                if g:IsA("ScreenGui") and g.Name ~= "MobileToggle" and g.Name ~= "AutoOpenGui" and g.Name ~= "AutoBuyGui" then
-                    if g:FindFirstChildWhichIsA("Frame") then
-                        g.Enabled = Library.Toggled
-                        break
-                    end
-                end
-            end
-        end)
-        -- Visual feedback
-        Btn.Text = Library.Toggled and "🖤" or "👁"
-    end)
-
-    -- Drag via TouchMoved di MobileGui (lebih reliable dari InputBegan di button)
-    MobileGui.InputBegan:Connect(function(inp)
-        if inp.UserInputType == Enum.UserInputType.Touch then
-            local btnAbs = Btn.AbsolutePosition
-            local btnSz  = Btn.AbsoluteSize
-            local tx = inp.Position.X
-            local ty = inp.Position.Y
-            if tx >= btnAbs.X - 10 and tx <= btnAbs.X + btnSz.X + 10
-            and ty >= btnAbs.Y - 10 and ty <= btnAbs.Y + btnSz.Y + 10 then
-                touchId       = inp
-                startTouchPos = Vector2.new(tx, ty)
-                startBtnPos   = Btn.Position
-                movedPixels   = 0
-                isDragging    = false
+    -- Fungsi toggle GUI
+    local function toggleGui()
+        guiVisible = not guiVisible
+        -- Cari semua ScreenGui LinoriaLib dan toggle
+        for _, g in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
+            if g:IsA("ScreenGui")
+            and g.Name ~= "MobileToggle"
+            and g.Name ~= "AutoOpenGui"
+            and g.Name ~= "AutoBuyGui" then
+                g.Enabled = guiVisible
             end
         end
-    end)
+        Btn.Text = guiVisible and "🖤" or "👁"
+        -- Coba juga via Library
+        pcall(function() Library.Toggled = guiVisible end)
+        pcall(function() Library:SetVisible(guiVisible) end)
+    end
 
-    MobileGui.InputChanged:Connect(function(inp)
-        if inp.UserInputType == Enum.UserInputType.Touch and touchId then
-            local delta = Vector2.new(inp.Position.X, inp.Position.Y) - startTouchPos
+    -- Touch began
+    Btn.InputBegan:Connect(function(inp)
+        if inp.UserInputType ~= Enum.UserInputType.Touch then return end
+        touchActive   = true
+        isDragging    = false
+        movedPixels   = 0
+        startTouch    = Vector2.new(inp.Position.X, inp.Position.Y)
+        startBtnPos   = Btn.Position
+        inp:GetPropertyChangedSignal("Delta"):Connect(function()
+            if not touchActive then return end
+            local cur = Vector2.new(inp.Position.X, inp.Position.Y)
+            local delta = cur - startTouch
             movedPixels = math.sqrt(delta.X^2 + delta.Y^2)
-            if movedPixels > 12 then
+            if movedPixels > 10 then
                 isDragging = true
                 Btn.Position = UDim2.new(
-                    startBtnPos.X.Scale,
-                    startBtnPos.X.Offset + delta.X,
-                    startBtnPos.Y.Scale,
-                    startBtnPos.Y.Offset + delta.Y
+                    startBtnPos.X.Scale, startBtnPos.X.Offset + delta.X,
+                    startBtnPos.Y.Scale, startBtnPos.Y.Offset + delta.Y
                 )
             end
-        end
+        end)
     end)
 
-    MobileGui.InputEnded:Connect(function(inp)
-        if inp.UserInputType == Enum.UserInputType.Touch then
-            task.delay(0.05, function()
-                isDragging = false
-                touchId    = nil
-            end)
+    -- Touch ended
+    Btn.InputEnded:Connect(function(inp)
+        if inp.UserInputType ~= Enum.UserInputType.Touch then return end
+        touchActive = false
+        if not isDragging then
+            toggleGui()
         end
+        isDragging = false
     end)
 
-    print("[Hub] 📱 Mobile — tap 🖤 buat buka/tutup, drag buat pindahin")
+    print("[Hub] 📱 Mobile ready — tap 🖤 buka/tutup GUI, drag pindahin tombol")
 end
 
 Library:SetWatermark('Warnetopia Hub 🖤 | by Realx13')
