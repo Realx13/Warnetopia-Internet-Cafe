@@ -1,5 +1,5 @@
 --[[
-    Warnetopia — Auto Buy, All Stores Manual Buy, Restock Timer, Full Auto Tempatkan, Auto Bersih Sampah, WalkSpeed, Anti AFK, Webhook & SaveManager (Autoload Config)
+    Warnetopia — Auto Buy, All Stores Manual Buy, Restock Timer, Full Auto Tempatkan, Auto Bersih Sampah, Auto Buff Es Teh Segar, WalkSpeed, Anti AFK, Webhook & SaveManager (Autoload Config)
     UI: LinoriaLib
     Credit : Realx
 --]]
@@ -45,6 +45,7 @@ local STORE_LOCATIONS = {
     decor     = CFrame.new(-26.1, 2.7, -42.2),
     kitchen   = CFrame.new(-187.6, 2.7, -44.1),
     minimart  = CFrame.new(91.7, 2.7, -5.2),
+    esteh     = CFrame.new(305.1, 2.7, -46.9),
 }
 
 local STORE_DISPLAY_TO_ID = {
@@ -71,6 +72,16 @@ local UI_TITLE_TO_STORE_ID = {
     ["Minimart 24"]        = "minimart",
 }
 
+local ESTEH_DISPLAY_TO_ID = {
+    ["🧊 Es Teh Manis ($5.000 • 4 Jam)"]  = "es_teh",
+    ["🍊 Es Jeruk ($7.000 • 5.5 Jam)"]   = "es_jeruk",
+}
+
+local ESTEH_ID_TO_LABEL = {
+    es_teh   = "Es Teh Manis ($5.000)",
+    es_jeruk = "Es Jeruk ($7.000)",
+}
+
 local MAX_SLOTS = 15
 
 -- ─── CONFIG ───────────────────────────────────────────────────────────────────
@@ -81,6 +92,9 @@ local cfg = {
     autoDayEnabled      = false,
     autoPlaceEnabled    = false,
     autoCleanEnabled    = false,
+
+    autoEsTehEnabled    = false,
+    esTehChoice         = "es_jeruk",
 
     walkSpeedEnabled    = false,
     walkSpeedValue      = 32,
@@ -108,6 +122,7 @@ local continuePending   = false
 local isBuying          = false
 local isCleaning        = false
 local lastBuyCooldown   = 0
+local lastEsTehCooldown = 0
 local latestSnap        = nil
 local restockEndClock   = nil
 local discountPercent   = 0
@@ -254,6 +269,72 @@ local function clickGuiButton(btn)
     if not btn or not firesignal then return end
     pcall(function() firesignal(btn.MouseButton1Click) end)
     pcall(function() firesignal(btn.Activated) end)
+end
+
+-- ─── HELPER: Koordinat Es Teh Segar & Deteksi Buff Fresh ──────────────────────
+local function getEsTehCFrame()
+    return STORE_LOCATIONS.esteh
+end
+
+local function getFreshBuffText()
+    local gui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+    if not gui then return nil end
+
+    local ok, tl = pcall(function()
+        return gui.WarnetopiaUI.Root.TL
+    end)
+    if not ok or not tl then return nil end
+
+    for _, obj in ipairs(tl:GetDescendants()) do
+        if obj:IsA("TextLabel") and obj.Visible then
+            local rawTxt = obj.Text or ""
+            if rawTxt ~= "" then
+                local cleanTxt = rawTxt:gsub("<[^>]+>", " "):gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+                local lowerTxt = cleanTxt:lower()
+
+                if lowerTxt:find("segar") or lowerTxt:find("fresh for") then
+                    local displayTxt = cleanTxt:gsub("^[^%w]+", "")
+                    return displayTxt
+                end
+            end
+        end
+    end
+
+    return nil
+end
+
+local function buyEsTehManualOrAuto(itemId, isAuto)
+    if isBuying or isCleaning then
+        if not isAuto then
+            Library:Notify("Sedang proses aksi lain, tunggu sebentar...", 2)
+        end
+        return false
+    end
+
+    local hrp = getHRP()
+    local targetCFrame = getEsTehCFrame()
+    if not hrp or not targetCFrame then return false end
+
+    isBuying = true
+    local originalCFrame = hrp.CFrame
+    local labelName = ESTEH_ID_TO_LABEL[itemId] or itemId
+
+    hrp.CFrame = targetCFrame
+    task.wait(0.45)
+    fireAction("eat", { item = itemId, warung = "esteh" })
+
+    if isAuto then
+        Library:Notify("🥤 Auto Buff: Membeli " .. labelName, 2.5)
+    else
+        Library:Notify("✅ Membeli: " .. labelName, 2.5)
+    end
+
+    task.wait(0.3)
+    if getHRP() then
+        getHRP().CFrame = originalCFrame
+    end
+    isBuying = false
+    return true
 end
 
 -- ─── HELPER: Beli 1 Item Manual dari Tombol UI ────────────────────────────────
@@ -410,6 +491,39 @@ TimerBox:AddButton({
         end
     end,
     Tooltip = 'Teleport manual ke toko yang sedang dipilih di sebelah kanan',
+})
+
+-- Groupbox Kiri Bawah: Es Teh Segar (Buff Memasak +60%)
+local EsTehBox = CafeTab:AddLeftGroupbox('🥤 Es Teh Segar (Buff +60%)')
+local EsTehStatusLabel = EsTehBox:AddLabel('Status Buff: Mengecek...')
+
+EsTehBox:AddDropdown('esTehChoiceDropdown', {
+    Values   = {
+        '🧊 Es Teh Manis ($5.000 • 4 Jam)',
+        '🍊 Es Jeruk ($7.000 • 5.5 Jam)',
+    },
+    Default  = 2,
+    Multi    = false,
+    Text     = 'Pilih Menu:',
+    Tooltip  = 'Pilih minuman buff yang akan dibeli (manual & otomatis)',
+    Callback = function(val)
+        cfg.esTehChoice = ESTEH_DISPLAY_TO_ID[val] or "es_jeruk"
+    end,
+})
+
+EsTehBox:AddToggle('autoEsTehEnabled', {
+    Text     = 'Auto Beli Saat Buff Habis',
+    Default  = false,
+    Tooltip  = 'Otomatis TP ke warung Es Teh Segar & beli lagi begitu efek Fresh habis',
+    Callback = function(val) cfg.autoEsTehEnabled = val end,
+})
+
+EsTehBox:AddButton({
+    Text = '🥤 Beli Sekarang (1x)',
+    Func = function()
+        task.spawn(buyEsTehManualOrAuto, cfg.esTehChoice, false)
+    end,
+    Tooltip = 'Langsung TP ke Es Teh Segar, minum pilihan di atas, lalu kembali',
 })
 
 local ManualShopBox = CafeTab:AddRightGroupbox('🛍️ Beli Manual (Semua Toko)')
@@ -1067,6 +1181,7 @@ local uiTimer = 0
 local checkTimer = 0
 local placeTimer = 0
 local cleanTimer = 0
+local esTehTimer = 0
 
 RunService.Heartbeat:Connect(function(dt)
     if cfg.walkSpeedEnabled then
@@ -1093,6 +1208,21 @@ RunService.Heartbeat:Connect(function(dt)
             task.spawn(function()
                 pcall(processAutoCleanTrash)
             end)
+        end
+    end
+
+    esTehTimer = esTehTimer + dt
+    if esTehTimer >= 1.0 then
+        esTehTimer = 0
+        local ok, buffTxt = pcall(getFreshBuffText)
+        if ok and buffTxt then
+            EsTehStatusLabel:SetText("⚡ Aktif: " .. buffTxt)
+        else
+            EsTehStatusLabel:SetText("💤 Status Buff: Tidak aktif / Habis")
+            if cfg.autoEsTehEnabled and not isBuying and not isCleaning and (os.clock() - lastEsTehCooldown >= 6) then
+                lastEsTehCooldown = os.clock()
+                task.spawn(buyEsTehManualOrAuto, cfg.esTehChoice, true)
+            end
         end
     end
 
