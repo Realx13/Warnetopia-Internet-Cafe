@@ -1,9 +1,9 @@
 --[[
-    Warnetopia Hub — Full Script (Fluent UI — Multi-Mirror Anti-Nil & Anti-Scroll Ready)
+    Warnetopia Hub — Full Script (Fluent UI — Multi-Mirror, Anti-Scroll & Locked State Ready)
     UI: Fluent (Multi-Mirror Loader + Safe Addons)
     Features:
     ✅ Multi-Mirror Loader (Anti Line-1 nil value di HP / Cloud Phone)
-    ✅ Anti-Scroll & Anti Double-Tap Locked Toggles
+    ✅ Anti-Scroll, Anti-Tembus & Internal-Sync Locked Toggles (isInternalSync + winHidden)
     ✅ Auto Buy Rare Items (Komputer, Mebel, Dekorasi)
     ✅ Auto Restock Minimart
     ✅ Manual Buy Semua Toko (15 Slot + Timer Restock)
@@ -821,11 +821,12 @@ local Tabs = {
 
 local Options = Fluent.Options
 
--- ─── ANTI-SCROLL & ANTI DOUBLE-TAP LOCKED TOGGLE ──────────────────
+-- ─── ANTI-SCROLL, ANTI-TEMBUS & INTERNAL-SYNC LOCKED TOGGLE ────────
 local isTouchScrolling = false
 local touchOriginPos   = Vector2.zero
 local toggleLastTap    = {}
 local isConfigLoading  = false
+local isInternalSync   = false
 
 UserInputService.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -861,6 +862,8 @@ local function addLockedToggle(section, id, title, desc, defaultVal, extraCallba
         Description = desc,
         Default     = defaultVal,
         Callback    = function(val)
+            if isInternalSync then return end
+
             if isConfigLoading then
                 if type(val) == "boolean" then
                     cfg[id] = val
@@ -869,11 +872,16 @@ local function addLockedToggle(section, id, title, desc, defaultVal, extraCallba
                 return
             end
 
+            -- Cek apakah jendela Fluent sedang di-minimize / tersembunyi
+            local winHidden = Window and Window.Minimized == true
+
             local now = os.clock()
-            if isTouchScrolling or (toggleLastTap[id] and (now - toggleLastTap[id]) < 0.35) then
+            if winHidden or isTouchScrolling or (toggleLastTap[id] and (now - toggleLastTap[id]) < 0.45) then
                 task.defer(function()
                     if Options and Options[id] and Options[id].Value ~= cfg[id] then
+                        isInternalSync = true
                         pcall(function() Options[id]:SetValue(cfg[id]) end)
+                        isInternalSync = false
                     end
                 end)
                 return
@@ -1646,5 +1654,5 @@ if isMobile then
     end)
 end
 
-notify("Warnetopia Hub 🖤", "Fluent UI (Multi-Mirror + Anti-Scroll) berhasil dimuat!", 4)
-print("[Hub] 🖤 Warnetopia Hub (Multi-Mirror + Anti-Scroll) loaded!")
+notify("Warnetopia Hub 🖤", "Fluent UI (Full Locked + Multi-Mirror) berhasil dimuat!", 4)
+print("[Hub] 🖤 Warnetopia Hub (Full Locked + Multi-Mirror) loaded!")
