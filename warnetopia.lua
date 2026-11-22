@@ -1,10 +1,9 @@
 --[[
-    Warnetopia Hub — Full Script (Fluent UI — EN/ID DayReport, 22px Touch Tolerance & Hard-Lock Ready)
+    Warnetopia Hub — Full Script (Fluent UI — Clean Direct Toggles & EN/ID DayReport)
     UI: Fluent (Multi-Mirror Loader + Safe Addons)
     Features:
     ✅ Multi-Mirror Loader (Anti Line-1 nil value di HP / Cloud Phone)
-    ✅ Hard-Lock Watchdog (Heartbeat pemaksa visual Fluent mengikuti cfg + tanpa LoadAutoloadConfig)
-    ✅ Toleransi Sentuhan Layar 22px & Cooldown 0.25s (Tap tombol tidak tertolak saat layar agak bergeser)
+    ✅ Clean Direct Toggles (Tap langsung diterima tanpa ditarik balik watchdog)
     ✅ Auto Lanjut Hari Support Bahasa Inggris ("Continue to Day X") & Indonesia ("Lanjut ke Hari X")
     ✅ Auto Buy Rare Items (Komputer, Mebel, Dekorasi)
     ✅ Auto Restock Minimart
@@ -823,68 +822,14 @@ local Tabs = {
     Settings  = Window:AddTab({ Title = "Settings",   Icon = "settings" }),
 }
 
-local Options = Fluent.Options
-
--- ─── ANTI-SCROLL (22PX), ANTI-TEMBUS & HARD-LOCK TOGGLE ───────────
-local isTouchScrolling = false
-local touchOriginPos   = Vector2.zero
-local toggleLastTap    = {}
-local isInternalSync   = false
-local lockedToggleIds  = {}
-
-UserInputService.InputBegan:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
-        touchOriginPos   = Vector2.new(inp.Position.X, inp.Position.Y)
-        isTouchScrolling = false
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseMovement then
-        if touchOriginPos ~= Vector2.zero then
-            local cur = Vector2.new(inp.Position.X, inp.Position.Y)
-            if (cur - touchOriginPos).Magnitude > 22 then
-                isTouchScrolling = true
-            end
-        end
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
-        task.defer(function()
-            isTouchScrolling = false
-            touchOriginPos   = Vector2.zero
-        end)
-    end
-end)
-
+-- ─── CLEAN DIRECT TOGGLE (TANPA WATCHDOG & TANPA FILTER TOLAK TAP) ─
 local function addLockedToggle(section, id, title, desc, defaultVal, extraCallback)
     cfg[id] = defaultVal
-    table.insert(lockedToggleIds, id)
-
     section:AddToggle(id, {
         Title       = title,
         Description = desc,
         Default     = defaultVal,
         Callback    = function(val)
-            if isInternalSync then return end
-
-            local winHidden = Window and Window.Minimized == true
-            local now = os.clock()
-
-            if winHidden or isTouchScrolling or (toggleLastTap[id] and (now - toggleLastTap[id]) < 0.25) then
-                task.defer(function()
-                    if Options and Options[id] and Options[id].Value ~= cfg[id] then
-                        isInternalSync = true
-                        pcall(function() Options[id]:SetValue(cfg[id]) end)
-                        isInternalSync = false
-                    end
-                end)
-                return
-            end
-            toggleLastTap[id] = now
-
             if type(val) == "boolean" then
                 cfg[id] = val
                 if extraCallback then extraCallback(val) end
@@ -1465,17 +1410,6 @@ local serveTimer = 0
 local esTehTimer = 0
 
 RunService.Heartbeat:Connect(function(dt)
-    -- Hard-Lock Watchdog: Paksa visual Fluent selalu mengikuti cfg yang sah (anti mati sendiri)
-    if Options and not isInternalSync then
-        for _, id in ipairs(lockedToggleIds) do
-            if Options[id] and Options[id].Value ~= cfg[id] then
-                isInternalSync = true
-                pcall(function() Options[id]:SetValue(cfg[id]) end)
-                isInternalSync = false
-            end
-        end
-    end
-
     if cfg.walkSpeedEnabled then
         local hum = getHumanoid()
         if hum and hum.WalkSpeed ~= cfg.walkSpeedValue then
@@ -1661,5 +1595,5 @@ if isMobile then
     end)
 end
 
-notify("Warnetopia Hub 🖤", "Fluent UI (EN/ID DayReport + 22px Touch Lock) siap!", 4)
-print("[Hub] 🖤 Warnetopia Hub (EN/ID DayReport + 22px Touch Lock) loaded!")
+notify("Warnetopia Hub 🖤", "Fluent UI (Clean Direct Toggles Ready) berhasil dimuat!", 4)
+print("[Hub] 🖤 Warnetopia Hub (Clean Direct Toggles) loaded!")
