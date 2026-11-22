@@ -1,9 +1,10 @@
 --[[
-    Warnetopia Hub — Full Script (Fluent UI — Anti Double-Tap Debounce & VirtualInputManager Ready)
+    Warnetopia Hub — Full Script (Fluent UI — Tombol Status 🟢 [ON] / 🔴 [OFF] & EN/ID DayReport)
     UI: Fluent (Multi-Mirror Loader + Safe Addons)
     Features:
     ✅ Multi-Mirror Loader (Anti Line-1 nil value di HP / Cloud Phone)
-    ✅ Anti Double-Tap Debounce (0.35s) — Memblokir pantulan klik ke-2 di executor HP
+    ✅ Tombol Status 🟢 [ON] / 🔴 [OFF] berbasis AddButton (100% bebas bug memantul mati di HP)
+    ✅ Pembersih UI Fluent lama otomatis sebelum jendela baru dibuat
     ✅ VirtualInputManager + firesignal pada clickGuiButton (Auto klik Continue to Day X / Lanjut ke Hari X)
     ✅ Auto Buy Rare Items (Komputer, Mebel, Dekorasi)
     ✅ Auto Restock Minimart
@@ -820,6 +821,17 @@ local function checkStockAlert(stock)
     end
 end
 
+-- ─── BERSIHKAN JENDELA FLUENT LAMA JIKA RE-EXECUTE ────────────────
+for _, root in ipairs(getAllGuiRoots()) do
+    for _, child in ipairs(root:GetChildren()) do
+        if child:IsA("ScreenGui") and child.Name == "ScreenGui" then
+            if tostring(child:GetFullName()):find("Fluent") or child:FindFirstChild("Notifications") then
+                pcall(function() child:Destroy() end)
+            end
+        end
+    end
+end
+
 -- ─── BUILD FLUENT UI ──────────────────────────────────────────────
 local isMobile = UserInputService.TouchEnabled
 local Window = Fluent:CreateWindow({
@@ -840,38 +852,34 @@ local Tabs = {
     Settings  = Window:AddTab({ Title = "Settings",   Icon = "settings" }),
 }
 
--- ─── ANTI DOUBLE-TAP DEBOUNCE TOGGLE (KHUSUS EXECUTOR HP) ──────────
+-- ─── TOMBOL STATUS 🟢 [ON] / 🔴 [OFF] (PENGGANTI ADDTOGGLE) ───────
 local toggleLastChange = {}
-local isReverting      = false
 
 local function addLockedToggle(section, id, title, desc, defaultVal, extraCallback)
     cfg[id] = defaultVal
-    section:AddToggle(id, {
-        Title       = title,
-        Description = desc,
-        Default     = defaultVal,
-        Callback    = function(val)
-            if isReverting then return end
-            local now = os.clock()
+    local btnObj
+    local function formatLabel(state)
+        return (state and "🟢 [ON]  " or "🔴 [OFF] ") .. title
+    end
 
-            -- Blokir pantulan klik ke-2 dalam < 0.35 detik setelah perubahan sah
+    btnObj = section:AddButton({
+        Title       = formatLabel(defaultVal),
+        Description = desc,
+        Callback    = function()
+            local now = os.clock()
             if toggleLastChange[id] and (now - toggleLastChange[id]) < 0.35 then
-                isReverting = true
-                task.defer(function()
-                    pcall(function()
-                        if Fluent.Options and Fluent.Options[id] then
-                            Fluent.Options[id]:SetValue(cfg[id])
-                        end
-                    end)
-                    isReverting = false
-                end)
                 return
             end
-
             toggleLastChange[id] = now
-            if type(val) == "boolean" then
-                cfg[id] = val
-                if extraCallback then extraCallback(val) end
+
+            cfg[id] = not cfg[id]
+            pcall(function()
+                if btnObj and btnObj.SetTitle then
+                    btnObj:SetTitle(formatLabel(cfg[id]))
+                end
+            end)
+            if extraCallback then
+                extraCallback(cfg[id])
             end
         end
     })
@@ -880,7 +888,7 @@ end
 -- ══ TAB 1: AUTO BUY ══════════════════════════════════════════════
 local SecAutoBuy = Tabs.AutoBuy:AddSection("⚙️ Auto Buy Rare")
 
-addLockedToggle(SecAutoBuy, "autoBuyEnabled", "Auto Buy Rare ON/OFF", "Otomatis teleport & beli item langka dari toko kota", false)
+addLockedToggle(SecAutoBuy, "autoBuyEnabled", "Auto Buy Rare", "Otomatis teleport & beli item langka dari toko kota", false)
 
 SecAutoBuy:AddSlider("minTier", {
     Title       = "Minimum Tier",
@@ -1634,5 +1642,5 @@ if isMobile then
     end)
 end
 
-notify("Warnetopia Hub 🖤", "Fluent UI (Anti Double-Tap + VirtualInputManager Ready) dimuat!", 4)
-print("[Hub] 🖤 Warnetopia Hub (Anti Double-Tap + VirtualInputManager) loaded!")
+notify("Warnetopia Hub 🖤", "Fluent UI (Tombol Status 🟢 ON / 🔴 OFF) siap digunakan!", 4)
+print("[Hub] 🖤 Warnetopia Hub (Tombol Status ON/OFF) loaded!")
