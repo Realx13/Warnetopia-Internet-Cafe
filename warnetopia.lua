@@ -1,14 +1,31 @@
 --[[
-    Warnetopia Hub — Full Script (Fluent UI Asli AddToggle + EN/ID DayReport)
-    UI: Fluent (Multi-Mirror Loader + Safe Addons)
+    Warnetopia Hub — Full Script
+    UI: Fluent
+    Features:
+    ✅ Auto Buy Rare Items
+    ✅ Auto Restock Minimart
+    ✅ Manual Buy Semua Toko (+ rarity badge + detail diskon)
+    ✅ Auto Buka Warnet
+    ✅ Auto Lanjut Hari (EN & ID)
+    ✅ Auto Tempatkan Pelanggan
+    ✅ Auto Bersih Sampah
+    ✅ Auto Layani Semua Menu
+    ✅ Auto Buff Es Teh Segar (EN & ID detect)
+    ✅ Auto Restock Kafe dari Menu Kafe
+    ✅ Stats Dashboard Real-time
+    ✅ Low Stock Alert + Discord Webhook
+    ✅ WalkSpeed Custom
+    ✅ Anti AFK
+    ✅ Save/Load Config
+    ✅ Mobile Toggle Button
     Credit: Realx13
 --]]
 
--- ─── MULTI-MIRROR SAFE LOADER ────────────────────────────────────
+-- ─── LOAD FLUENT ──────────────────────────────────────────────────
 local function safeLoad(urls, name)
     for _, url in ipairs(urls) do
-        local okHttp, body = pcall(function() return game:HttpGet(url) end)
-        if okHttp and type(body) == "string" and #body > 100 and not body:find("404: Not Found") then
+        local ok, body = pcall(function() return game:HttpGet(url) end)
+        if ok and type(body) == "string" and #body > 100 and not body:find("404: Not Found") then
             local fn, err = loadstring(body)
             if type(fn) == "function" then
                 local okRun, res = pcall(fn)
@@ -27,10 +44,7 @@ local Fluent = safeLoad({
     "https://raw.githubusercontent.com/Footagesus/Fluent/main/main.lua"
 }, "Fluent")
 
-if not Fluent then
-    warn("[Hub] Semua mirror Fluent gagal dimuat!")
-    return
-end
+if not Fluent then warn("[Hub] Fluent gagal dimuat!") return end
 
 local SaveManager = safeLoad({
     "https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"
@@ -106,7 +120,6 @@ local ESTEH_DISPLAY_TO_ID = {
     ["🧊 Es Teh Manis ($5.000 • 4 Jam)"] = "es_teh",
     ["🍊 Es Jeruk ($7.000 • 5.5 Jam)"]  = "es_jeruk",
 }
-
 local ESTEH_ID_TO_LABEL = {
     es_teh   = "Es Teh Manis ($5.000)",
     es_jeruk = "Es Jeruk ($7.000)",
@@ -122,23 +135,48 @@ local COOK_DURATION = {
 }
 
 local FOOD_MAP = {
-    ["mie telur"]   = { cook = "Buat Mie Telur",  station = "stove",          switchNeeded = false },
-    ["nasi goreng"] = { cook = "Buat Nasi Goreng", station = "stove",          switchNeeded = true  },
-    ["snack"]       = { cook = "Buat Snack",       station = "snack_rack",     switchNeeded = false },
-    ["kopi hitam"]  = { cook = "Buat Kopi Hitam",  station = "coffee_machine", switchNeeded = false },
-    ["es teh"]      = { cook = "Buat Es Teh",      station = "fridge",         switchNeeded = false },
-    ["soda"]        = { cook = "Buat Soda",        station = "fridge",         switchNeeded = true  },
+    ["mie telur"]    = { cook = "Buat Mie Telur",  station = "stove",          switchNeeded = false },
+    ["egg noodles"]  = { cook = "Buat Mie Telur",  station = "stove",          switchNeeded = false },
+    ["nasi goreng"]  = { cook = "Buat Nasi Goreng", station = "stove",          switchNeeded = true  },
+    ["fried rice"]   = { cook = "Buat Nasi Goreng", station = "stove",          switchNeeded = true  },
+    ["snack"]        = { cook = "Buat Snack",       station = "snack_rack",     switchNeeded = false },
+    ["kopi hitam"]   = { cook = "Buat Kopi Hitam",  station = "coffee_machine", switchNeeded = false },
+    ["black coffee"] = { cook = "Buat Kopi Hitam",  station = "coffee_machine", switchNeeded = false },
+    ["es teh"]       = { cook = "Buat Es Teh",      station = "fridge",         switchNeeded = false },
+    ["iced tea"]     = { cook = "Buat Es Teh",      station = "fridge",         switchNeeded = false },
+    ["soda"]         = { cook = "Buat Soda",        station = "fridge",         switchNeeded = true  },
 }
 
 local DELIVER_ACTIONS = {
     "Antar Mie Telur", "Antar Nasi Goreng", "Antar Snack",
     "Antar Kopi Hitam", "Antar Es Teh", "Antar Soda",
+    "Deliver Egg Noodles", "Deliver Fried Rice", "Deliver Snack",
+    "Deliver Black Coffee", "Deliver Iced Tea", "Deliver Soda",
 }
 
 local RARE_STORE_MAP = {
     computer  = "store_computer",
     furniture = "store_furniture",
     decor     = "store_decor",
+}
+
+-- Map: snap.stock key → catalog item ID buat beli dari menu kafe
+local CAFE_STOCK_MAP = {
+    snack  = "stock_snack",
+    tea    = "stock_tea",
+    soda   = "stock_soda",
+    coffee = "stock_coffee",
+    noodle = "stock_noodle",
+    rice   = "stock_rice",
+}
+
+local STOCK_LABELS = {
+    snack  = "Snack",
+    tea    = "Es Teh",
+    soda   = "Soda",
+    coffee = "Kopi Hitam",
+    noodle = "Mie Telur/Nasi Goreng",
+    rice   = "Nasi (Minimart)",
 }
 
 local MAX_SLOTS = 15
@@ -153,15 +191,16 @@ local cfg = {
     autoCleanEnabled    = false,
     autoServeEnabled    = false,
     autoEsTehEnabled    = false,
+    autoRestockKafe     = false,
     esTehChoice         = "es_jeruk",
     walkSpeedEnabled    = false,
     walkSpeedValue      = 32,
     antiAfkEnabled      = true,
     webhookUrl          = "",
-    stockAlertEnabled   = true,
-    stockThreshold      = 10,
     webhookEnabled      = false,
     webhookStockAlert   = false,
+    stockAlertEnabled   = true,
+    stockThreshold      = 10,
     store_computer      = true,
     store_furniture     = true,
     store_decor         = true,
@@ -183,6 +222,7 @@ local lastBuyCooldown   = 0
 local lastEsTehCooldown = 0
 local latestSnap        = nil
 local lastStockAlert    = {}
+local lastRestockCooldown = {}
 local restockEndClock   = nil
 local discountPercent   = 0
 local assignedCooldowns = {}
@@ -190,14 +230,10 @@ local selectedStoreId   = "computer"
 local storeOrderedUI    = {}
 local activeSlotItems   = {}
 
--- ─── NOTIFY HELPER ────────────────────────────────────────────────
+-- ─── NOTIFY ───────────────────────────────────────────────────────
 local function notify(title, content, duration)
     pcall(function()
-        Fluent:Notify({
-            Title    = title or "Warnetopia Hub",
-            Content  = content or "",
-            Duration = duration or 3,
-        })
+        Fluent:Notify({ Title=title or "Hub", Content=content or "", Duration=duration or 3 })
     end)
 end
 
@@ -216,23 +252,20 @@ local function getHumanoid()
     return char and char:FindFirstChildOfClass("Humanoid")
 end
 
-local function safeTeleport(targetCFrame)
+local function safeTeleport(cf)
     local hrp = getHRP()
     local hum = getHumanoid()
-    if not hrp or not targetCFrame then return end
-    if hum and hum.Sit then
-        hum.Sit = false
-        task.wait(0.05)
-    end
+    if not hrp or not cf then return end
+    if hum and hum.Sit then hum.Sit = false task.wait(0.05) end
     hrp.AssemblyLinearVelocity = Vector3.zero
-    hrp.CFrame = targetCFrame
+    hrp.CFrame = cf
 end
 
-local function returnToOrigin(origCFrame)
-    if not origCFrame then return end
-    safeTeleport(origCFrame)
+local function returnToOrigin(orig)
+    if not orig then return end
+    safeTeleport(orig)
     task.wait(0.12)
-    safeTeleport(origCFrame)
+    safeTeleport(orig)
 end
 
 local function isGuiTrulyVisible(obj)
@@ -277,10 +310,10 @@ local function clickGuiButton(btn)
         end
     end
     pcall(function()
-        local pos  = btn.AbsolutePosition
-        local size = btn.AbsoluteSize
-        local cx   = pos.X + (size.X / 2)
-        local cy   = pos.Y + (size.Y / 2) + 36
+        local pos = btn.AbsolutePosition
+        local sz  = btn.AbsoluteSize
+        local cx  = pos.X + sz.X/2
+        local cy  = pos.Y + sz.Y/2 + 36
         VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, true, game, 1)
         task.wait(0.05)
         VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, false, game, 1)
@@ -327,7 +360,7 @@ local function formatTime(sec)
     return string.format("%02d:%02d", math.floor(sec/60), sec%60)
 end
 
--- ─── HELPER: Status warnet ────────────────────────────────────────
+-- ─── STATUS WARNET ────────────────────────────────────────────────
 local function getStatus()
     local gui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
     if not gui then return nil end
@@ -338,27 +371,23 @@ local function getStatus()
     for _, d in ipairs(card:GetDescendants()) do
         if d:IsA("TextLabel") then
             local t = d.Text:upper()
-            if t == "BUKA" or t == "OPEN"  then return "BUKA"
+            if t == "BUKA" or t == "OPEN" then return "BUKA"
             elseif t == "TUTUP" or t == "CLOSED" then return "TUTUP" end
         end
     end
     return nil
 end
 
--- ─── HELPER: DayReport button (EN & ID) ───────────────────────────
+-- ─── DAY REPORT BUTTON (EN + ID) ─────────────────────────────────
 local function getDayReportButton()
     for _, root in ipairs(getAllGuiRoots()) do
         for _, obj in ipairs(root:GetDescendants()) do
-            if (obj:IsA("TextButton") or obj:IsA("TextLabel")) then
+            if obj:IsA("TextButton") or obj:IsA("TextLabel") then
                 local txt = tostring(obj.Text or "")
                 if txt:find("Lanjut ke Hari", 1, true)
-                    or txt:match("^Lanjut%s+ke%s+Hari")
-                    or txt:find("Continue to Day", 1, true)
-                    or txt:match("^Continue%s+to%s+Day") then
+                or txt:find("Continue to Day", 1, true) then
                     local btn = obj:IsA("GuiButton") and obj or obj:FindFirstAncestorWhichIsA("GuiButton")
-                    if btn and isGuiTrulyVisible(btn) then
-                        return btn
-                    end
+                    if btn and isGuiTrulyVisible(btn) then return btn end
                 end
             end
         end
@@ -366,7 +395,7 @@ local function getDayReportButton()
     return nil
 end
 
--- ─── HELPER: Es Teh Buff ──────────────────────────────────────────
+-- ─── ES TEH BUFF (EN + ID) ────────────────────────────────────────
 local function getFreshBuffText()
     local gui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
     if not gui then return nil end
@@ -374,9 +403,15 @@ local function getFreshBuffText()
     if not ok or not tl then return nil end
     for _, obj in ipairs(tl:GetDescendants()) do
         if obj:IsA("TextLabel") and obj.Visible then
-            local txt = (obj.Text or ""):gsub("<[^>]+>", " "):gsub("%s+", " "):gsub("^%s+",""):gsub("%s+$","")
-            if txt:lower():find("segar") or txt:lower():find("fresh for") then
-                return txt:gsub("^[^%w]+", "")
+            local raw = obj.Text or ""
+            local txt = raw:gsub("<[^>]+>", " "):gsub("%s+", " "):gsub("^%s+",""):gsub("%s+$","")
+            local low = txt:lower()
+            -- ID: "Segar", EN: "Refreshed", "Fresh"
+            if low:find("refreshed") or low:find("fresh for")
+            or low:find("^fresh%s") or low:find("segar")
+            or raw:find("⚡") then
+                local clean = txt:gsub("^[^%w⚡]+", "")
+                if clean ~= "" then return clean end
             end
         end
     end
@@ -399,15 +434,13 @@ local function buyEsTeh(itemId, isAuto)
     return true
 end
 
--- ─── HELPER: Proximity Prompts ────────────────────────────────────
+-- ─── PROXIMITY PROMPTS ────────────────────────────────────────────
 local function findCookPrompt(stationName, cookAction)
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("ProximityPrompt") and obj.Enabled then
             if (obj.Parent and obj.Parent.Name) == stationName and obj.ActionText == cookAction then
                 local p = obj.Parent
-                if p and (p:IsA("BasePart") or p:IsA("Model")) then
-                    return obj, p
-                end
+                if p and (p:IsA("BasePart") or p:IsA("Model")) then return obj, p end
             end
         end
     end
@@ -419,9 +452,7 @@ local function findSwitchPrompt(stationName)
         if obj:IsA("ProximityPrompt") and obj.Enabled then
             if (obj.Parent and obj.Parent.Name) == stationName and obj.ActionText == "Ganti" then
                 local p = obj.Parent
-                if p and (p:IsA("BasePart") or p:IsA("Model")) then
-                    return obj, p
-                end
+                if p and (p:IsA("BasePart") or p:IsA("Model")) then return obj, p end
             end
         end
     end
@@ -479,7 +510,7 @@ local function processAutoServeAll()
     local deliverPrompt, deliverPart, deliverAction, _ = findDeliverPrompt(nil)
     if not deliverPrompt or not deliverPart then return end
 
-    local foodKey  = (deliverAction:match("^Antar%s+(.+)$") or ""):lower()
+    local foodKey  = (deliverAction:match("^Antar%s+(.+)$") or deliverAction:match("^Deliver%s+(.+)$") or ""):lower()
     local foodInfo = FOOD_MAP[foodKey]
     local hrp      = getHRP()
     if not hrp then return end
@@ -533,10 +564,7 @@ local function processAutoServeAll()
         end
     end
 
-    if not isBuying and not isCleaning then
-        returnToOrigin(originalCFrame)
-    end
-
+    if not isBuying and not isCleaning then returnToOrigin(originalCFrame) end
     isServing = false
 
     if needSwitchBack and foodInfo then
@@ -569,19 +597,16 @@ local function processAutoClean()
     local orig = hrp.CFrame
     for _, item in ipairs(trashList) do
         if not cfg.autoCleanEnabled or isBuying or isServing then break end
-        local prompt, part = item.prompt, item.part
-        if prompt and prompt.Parent and prompt.Enabled and part and part.Parent then
+        if item.prompt and item.prompt.Parent and item.prompt.Enabled and item.part and item.part.Parent then
             local curHrp = getHRP()
             if curHrp then
-                tpToPart(curHrp, part)
-                triggerPromptSafe(prompt)
-                task.wait((prompt.HoldDuration or 0) + 0.35)
+                tpToPart(curHrp, item.part)
+                triggerPromptSafe(item.prompt)
+                task.wait((item.prompt.HoldDuration or 0) + 0.35)
             end
         end
     end
-    if not isBuying and not isServing then
-        returnToOrigin(orig)
-    end
+    if not isBuying and not isServing then returnToOrigin(orig) end
     isCleaning = false
 end
 
@@ -627,7 +652,6 @@ local function processAutoPlace()
             if btn and isGuiTrulyVisible(btn) then clickGuiButton(btn) return end
         end
     end
-
     local topBtn, topY = nil, math.huge
     for _, obj in ipairs(ui:GetDescendants()) do
         if (obj:IsA("TextButton") or obj:IsA("TextLabel")) and (obj.Text == "Tempatkan" or obj.Text == "Assign") then
@@ -680,9 +704,7 @@ local function setFluentButtonState(btnObj, newTitle, newDesc, isVisible)
         if btnObj.SetTitle then btnObj:SetTitle(newTitle) end
         if btnObj.SetDesc then btnObj:SetDesc(newDesc) end
         local frame = btnObj.Frame or btnObj.Container or btnObj.Holder
-        if frame and frame:IsA("GuiObject") then
-            frame.Visible = isVisible
-        end
+        if frame and frame:IsA("GuiObject") then frame.Visible = isVisible end
     end)
 end
 
@@ -698,14 +720,18 @@ local function refreshManualStoreSlots()
 
     if orderedList and #orderedList > 0 then
         for _, entry in ipairs(orderedList) do
-            local liveQty = (entry.id and snapShelf and snapShelf[entry.id] ~= nil) and snapShelf[entry.id] or entry.qty
+            local liveQty = (entry.id and snapShelf and snapShelf[entry.id] ~= nil)
+                and snapShelf[entry.id] or entry.qty
             entry.qty = liveQty
             local itemDisc = (discountPercent > 0) and discountPercent or (entry.discPct or 0)
             local finalPriceStr = entry.priceStr
             if entry.basePrice and itemDisc > 0 then
                 finalPriceStr = formatShortPrice(math.floor(entry.basePrice * (1 - itemDisc/100) + 0.5))
             end
-            table.insert(finalItems, { id=entry.id, name=entry.name, qty=liveQty, priceStr=finalPriceStr, discPct=itemDisc })
+            table.insert(finalItems, {
+                id=entry.id, name=entry.name, qty=liveQty,
+                priceStr=finalPriceStr, discPct=itemDisc, basePrice=entry.basePrice,
+            })
             if entry.id then seenIds[entry.id] = true end
         end
     end
@@ -721,8 +747,12 @@ local function refreshManualStoreSlots()
             local itemInfo = BY_ID[itemId]
             local displayName = (itemInfo and itemInfo.name) or itemId
             local basePrice = itemInfo and itemInfo.price
-            local finalPriceStr = basePrice and formatShortPrice(math.floor(basePrice * mult + 0.5)) or ""
-            table.insert(finalItems, { id=itemId, name=displayName, qty=qty, priceStr=finalPriceStr, discPct=discountPercent })
+            local discPrice = basePrice and mult < 1 and math.floor(basePrice * mult + 0.5) or basePrice
+            local finalPriceStr = discPrice and formatShortPrice(discPrice) or ""
+            table.insert(finalItems, {
+                id=itemId, name=displayName, qty=qty,
+                priceStr=finalPriceStr, discPct=discountPercent, basePrice=basePrice,
+            })
         end
     end
 
@@ -731,10 +761,24 @@ local function refreshManualStoreSlots()
             local item = finalItems[i]
             if item then
                 activeSlotItems[i] = item
-                local statusStr = item.qty > 0 and ("Stok: " .. item.qty) or "HABIS"
-                local discTag   = (item.discPct and item.discPct > 0) and string.format(" (-%d%%)", item.discPct) or ""
-                local descText  = statusStr .. (item.priceStr ~= "" and (" • Harga: " .. item.priceStr .. discTag) or discTag)
-                setFluentButtonState(StoreSlotButtons[i], item.name, descText, true)
+                -- Rarity badge
+                local itemInfo = item.id and BY_ID[item.id]
+                local rarity   = itemInfo and itemInfo.rarity or "biasa"
+                local badge    = rarity == "sangat_langka" and " ★★" or rarity == "langka" and " ★" or ""
+                local titleText = item.name .. badge
+
+                -- Desc: stok + harga diskon detail
+                local statusStr = item.qty > 0 and ("Stok: "..item.qty) or "⛔ HABIS"
+                local priceInfo = ""
+                if item.priceStr and item.priceStr ~= "" then
+                    if item.discPct and item.discPct > 0 and item.basePrice then
+                        local origPrice = formatShortPrice(item.basePrice)
+                        priceInfo = string.format(" │ 💰 %s (-%d%% dari %s)", item.priceStr, item.discPct, origPrice)
+                    else
+                        priceInfo = " │ 💰 " .. item.priceStr
+                    end
+                end
+                setFluentButtonState(StoreSlotButtons[i], titleText, statusStr .. priceInfo, true)
             else
                 setFluentButtonState(StoreSlotButtons[i], "", "", false)
             end
@@ -742,7 +786,7 @@ local function refreshManualStoreSlots()
     else
         for i = 1, MAX_SLOTS do
             if i <= 4 then
-                setFluentButtonState(StoreSlotButtons[i], "Slot " .. i, "Buka UI toko dulu / tunggu reset", true)
+                setFluentButtonState(StoreSlotButtons[i], "Slot "..i, "Buka UI toko dulu / tunggu reset", true)
             else
                 setFluentButtonState(StoreSlotButtons[i], "", "", false)
             end
@@ -765,28 +809,23 @@ local function buySingleItemManual(storeId, itemId, priceStr)
     safeTeleport(targetCFrame)
     task.wait(0.4)
     fireAction("storeBuy", { store=storeId, item=itemId })
-    notify("✅ Berhasil Beli", itemName .. (priceStr ~= "" and " (" .. priceStr .. ")" or ""), 2.5)
+    notify("✅ Berhasil Beli", itemName..(priceStr ~= "" and " ("..priceStr..")" or ""), 2.5)
     task.wait(0.25)
     returnToOrigin(orig)
     isBuying = false
 end
 
--- ─── STOCK ALERT ─────────────────────────────────────────────────
-local STOCK_LABELS = {
-    snack  = "Snack",
-    tea    = "Es Teh",
-    soda   = "Soda",
-    coffee = "Kopi Hitam",
-    noodle = "Mie Telur/Nasi Goreng",
-    rice   = "Nasi (Minimart)",
-}
-
+-- ─── STOCK ALERT + AUTO RESTOCK KAFE ─────────────────────────────
 local function checkStockAlert(stock)
-    if not cfg.stockAlertEnabled or not stock then return end
+    if not stock then return end
     local alerts = {}
+
     for key, label in pairs(STOCK_LABELS) do
         local qty = stock[key] or 0
-        if qty < cfg.stockThreshold then
+        local thr = cfg.stockThreshold
+
+        -- Warning notif
+        if cfg.stockAlertEnabled and qty < thr then
             if not lastStockAlert[key] or (os.clock() - lastStockAlert[key]) > 120 then
                 lastStockAlert[key] = os.clock()
                 table.insert(alerts, string.format("⚠️ %s tinggal %d", label, qty))
@@ -794,7 +833,30 @@ local function checkStockAlert(stock)
         else
             lastStockAlert[key] = nil
         end
+
+        -- Auto restock dari menu kafe (FireServer "buy")
+        if cfg.autoRestockKafe and qty < thr then
+            local cafeItemId = CAFE_STOCK_MAP[key]
+            if cafeItemId then
+                local now = os.clock()
+                if now - (lastRestockCooldown[key] or 0) >= 30 then
+                    lastRestockCooldown[key] = now
+                    task.spawn(function()
+                        -- Hitung berapa kali fire (+10 per fire)
+                        local target = thr + 20
+                        local needed = math.max(1, math.min(math.ceil((target - qty) / 10), 10))
+                        for i = 1, needed do
+                            fireAction("buy", { id = cafeItemId })
+                            task.wait(0.3)
+                        end
+                        notify("🛒 Auto Restock Kafe",
+                            string.format("%s +%d stok", label, needed * 10), 3)
+                    end)
+                end
+            end
+        end
     end
+
     if #alerts > 0 then
         local msg = table.concat(alerts, "\n")
         notify("⚠️ Stok Hampir Habis!", msg, 5)
@@ -804,16 +866,40 @@ local function checkStockAlert(stock)
     end
 end
 
--- ─── BERSIHKAN JENDELA FLUENT LAMA JIKA RE-EXECUTE ────────────────
+-- ─── ADDTOGGLE (normalized boolean) ──────────────────────────────
+local function addToggle(section, id, title, desc, defaultVal, extraCallback)
+    cfg[id] = defaultVal
+    return section:AddToggle(id, {
+        Title       = title,
+        Description = desc,
+        Default     = defaultVal,
+        Callback    = function(val)
+            local boolVal
+            if type(val) == "boolean" then boolVal = val
+            elseif type(val) == "number" then boolVal = val ~= 0
+            elseif type(val) == "string" then boolVal = val == "true" or val == "1"
+            elseif type(val) == "table" then
+                boolVal = val.Value == true
+            else boolVal = false end
+            cfg[id] = boolVal
+            if extraCallback then extraCallback(boolVal) end
+        end
+    })
+end
+
+-- ─── BERSIHKAN GUI LAMA ───────────────────────────────────────────
 for _, root in ipairs(getAllGuiRoots()) do
     for _, child in ipairs(root:GetChildren()) do
         if child:IsA("ScreenGui") and child.Name == "ScreenGui" then
-            if tostring(child:GetFullName()):find("Fluent") or child:FindFirstChild("Notifications") then
+            if child:FindFirstChild("Notifications") then
                 pcall(function() child:Destroy() end)
             end
         end
     end
 end
+local pg = LocalPlayer:WaitForChild("PlayerGui")
+local oldMobile = pg:FindFirstChild("MobileToggle")
+if oldMobile then oldMobile:Destroy() end
 
 -- ─── BUILD FLUENT UI ──────────────────────────────────────────────
 local isMobile = UserInputService.TouchEnabled
@@ -828,63 +914,38 @@ local Window = Fluent:CreateWindow({
 })
 
 local Tabs = {
-    AutoBuy   = Window:AddTab({ Title = "Auto Buy",   Icon = "shopping-cart" }),
-    Dashboard = Window:AddTab({ Title = "Dashboard",  Icon = "bar-chart-2" }),
-    TokoKota  = Window:AddTab({ Title = "Toko Kota",  Icon = "store" }),
-    AutoFarm  = Window:AddTab({ Title = "Auto Farm",  Icon = "zap" }),
-    Settings  = Window:AddTab({ Title = "Settings",   Icon = "settings" }),
+    AutoBuy   = Window:AddTab({ Title="Auto Buy",   Icon="shopping-cart" }),
+    Dashboard = Window:AddTab({ Title="Dashboard",  Icon="bar-chart-2"   }),
+    TokoKota  = Window:AddTab({ Title="Toko Kota",  Icon="store"         }),
+    AutoFarm  = Window:AddTab({ Title="Auto Farm",  Icon="zap"           }),
+    Settings  = Window:AddTab({ Title="Settings",   Icon="settings"      }),
 }
-
--- ─── TOGGLE ASLI FLUENT (CLEAN CALLBACK) ─────────────────────────
-local function addToggle(section, id, title, desc, defaultVal, extraCallback)
-    cfg[id] = defaultVal
-    return section:AddToggle(id, {
-        Title       = title,
-        Description = desc,
-        Default     = defaultVal,
-        Callback    = function(val)
-            cfg[id] = (val == true)
-            if extraCallback then extraCallback(cfg[id]) end
-        end
-    })
-end
 
 -- ══ TAB 1: AUTO BUY ══════════════════════════════════════════════
 local SecAutoBuy = Tabs.AutoBuy:AddSection("⚙️ Auto Buy Rare")
-
-addToggle(SecAutoBuy, "autoBuyEnabled", "Auto Buy Rare ON/OFF", "Otomatis teleport & beli item langka dari toko kota", false)
-
+addToggle(SecAutoBuy, "autoBuyEnabled", "Auto Buy Rare ON/OFF", "Otomatis TP & beli item langka dari toko kota", false)
 SecAutoBuy:AddSlider("minTier", {
-    Title       = "Minimum Tier",
-    Description = "Hanya beli item dengan tier >= angka ini",
-    Default     = 3,
-    Min         = 1,
-    Max         = 4,
-    Rounding    = 0,
-    Callback    = function(val)
-        if type(val) == "number" then cfg.minTier = val end
-    end
+    Title="Minimum Tier", Description="Hanya beli item tier >= ini",
+    Default=3, Min=1, Max=4, Rounding=0,
+    Callback=function(val) if type(val)=="number" then cfg.minTier = val end end
 })
 
 local SecRarity = Tabs.AutoBuy:AddSection("✨ Rarity Filter")
-
 addToggle(SecRarity, "rarityLangka", "Langka (★)", nil, true)
 addToggle(SecRarity, "raritySangat", "Sangat Langka (★★)", nil, true)
 
 local SecToko = Tabs.AutoBuy:AddSection("🏪 Target Toko Rare")
-
 addToggle(SecToko, "store_computer", "💻 Toko Komputer Jaya", nil, true)
 addToggle(SecToko, "store_furniture", "🪑 Mebel Jati", nil, true)
 addToggle(SecToko, "store_decor", "🌿 Galeri Dekorasi", nil, true)
 
 local SecMinimart = Tabs.AutoBuy:AddSection("🛒 Minimart 24")
-
-addToggle(SecMinimart, "autoMinimartEnabled", "Auto Restock Minimart", "Borong otomatis semua stok bahan makanan di Minimart 24", false)
+addToggle(SecMinimart, "autoMinimartEnabled", "Auto Restock Minimart", "Borong semua stok bahan di Minimart 24", false)
 
 -- ══ TAB 2: DASHBOARD ═════════════════════════════════════════════
 local ParaStats = Tabs.Dashboard:AddParagraph({
     Title   = "💰 Stats Warnet Hari Ini",
-    Content = "📅 Hari: -\n💵 Saldo: -\n⭐ Rating: -\n👥 Pelanggan: - | ✅ Served: - | 😠 Kecewa: -\n📈 Income: - (Billing: - | Makanan: - | Tips: -)\n🖥️ Sesi Aktif: - | 🕐 Antrean: -"
+    Content = "📅 Hari: -  |  💵 Saldo: -  |  ⭐ Rating: -\n👥 Pelanggan: -  |  ✅ Served: -  |  😠 Kecewa: -\n📈 Income: - (Billing: - | Makanan: - | Tips: -)\n🖥️ Sesi Aktif: -  |  🕐 Antrean: -"
 })
 
 local ParaStock = Tabs.Dashboard:AddParagraph({
@@ -892,37 +953,28 @@ local ParaStock = Tabs.Dashboard:AddParagraph({
     Content = "🍟 Snack: -\n🧊 Es Teh: -\n🥤 Soda: -\n☕ Kopi: -\n🍜 Mie/Nasi: -"
 })
 
-local SecAlert = Tabs.Dashboard:AddSection("⚠️ Low Stock Alert")
-
-addToggle(SecAlert, "stockAlertEnabled", "Aktifkan Stock Alert", "Munculkan notifikasi jika stok kafe di bawah batas", true)
-
+local SecAlert = Tabs.Dashboard:AddSection("⚠️ Low Stock & Auto Restock")
+addToggle(SecAlert, "stockAlertEnabled", "Aktifkan Stock Alert", "Notifikasi jika stok kafe di bawah batas", true)
 SecAlert:AddSlider("stockThreshold", {
-    Title    = "Batas Stok Minimum",
-    Default  = 10,
-    Min      = 5,
-    Max      = 50,
-    Rounding = 0,
-    Callback = function(val)
-        if type(val) == "number" then cfg.stockThreshold = val end
-    end
+    Title="Batas Stok Minimum", Default=10, Min=5, Max=50, Rounding=0,
+    Callback=function(val) if type(val)=="number" then cfg.stockThreshold = val end end
 })
+addToggle(SecAlert, "autoRestockKafe", "🛒 Auto Restock Kafe",
+    "Otomatis beli stok kafe dari menu kafe jika < batas (tanpa TP ke mana-mana)", false)
+addToggle(SecAlert, "webhookStockAlert", "Kirim Alert ke Discord", "Butuh Webhook URL di tab Settings", false)
 
-addToggle(SecAlert, "webhookStockAlert", "Kirim Alert ke Discord", "Kirim peringatan stok tipis ke Webhook Discord", false)
-
-local function stockLabel(qty, threshold)
-    if qty <= 0 then return " [HABIS!]"
-    elseif qty < threshold then return string.format(" [⚠️ %d]", qty)
+local function stockLabel(qty, thr)
+    if qty <= 0 then return " [⛔ HABIS]"
+    elseif qty < thr then return string.format(" [⚠️ %d]", qty)
     else return string.format(" [%d]", qty) end
 end
 
 local function updateDashboard(snap)
     if not snap then return end
-
-    local dayStr = tostring(snap.day or "-")
-    local m = snap.money or 0
-    local moneyStr = "$" .. tostring(m):reverse():gsub("(%d%d%d)", "%1."):reverse():gsub("^%.", "")
-    local repStr = string.format("%.2f", snap.rep or 0)
-
+    local dayStr  = tostring(snap.day or "-")
+    local m       = snap.money or 0
+    local moneyStr = "$"..tostring(m):reverse():gsub("(%d%d%d)", "%1."):reverse():gsub("^%.","")
+    local repStr  = string.format("%.2f", snap.rep or 0)
     local custStr, servStr, angryStr = "-", "-", "-"
     local incStr, billStr, foodStr, tipStr = "-", "-", "-", "-"
 
@@ -931,7 +983,6 @@ local function updateDashboard(snap)
         custStr  = tostring(t.customers or 0)
         servStr  = tostring(t.served or 0)
         angryStr = tostring(t.angry or 0)
-
         if t.income then
             local billing = t.income.billing or 0
             local food    = t.income.food or 0
@@ -943,24 +994,19 @@ local function updateDashboard(snap)
                 elseif n >= 1000 then return string.format("$%.0fK", n/1000)
                 else return "$"..n end
             end
-            incStr  = fmt(total)
-            billStr = fmt(billing)
-            foodStr = fmt(food)
-            tipStr  = fmt(tip)
+            incStr=fmt(total); billStr=fmt(billing); foodStr=fmt(food); tipStr=fmt(tip)
         end
     end
 
     local sesCount, qCount = 0, 0
-    if snap.sessions then for _ in pairs(snap.sessions) do sesCount = sesCount + 1 end end
-    if snap.queue then for _ in pairs(snap.queue) do qCount = qCount + 1 end end
+    if snap.sessions then for _ in pairs(snap.sessions) do sesCount=sesCount+1 end end
+    if snap.queue then for _ in pairs(snap.queue) do qCount=qCount+1 end end
 
     pcall(function()
         ParaStats:SetDesc(string.format(
             "📅 Hari: %s  |  💵 Saldo: %s  |  ⭐ Rating: %s\n👥 Pelanggan: %s  |  ✅ Served: %s  |  😠 Kecewa: %s\n📈 Income: %s (Billing: %s | Makanan: %s | Tips: %s)\n🖥️ Sesi Aktif: %d  |  🕐 Antrean: %d",
-            dayStr, moneyStr, repStr,
-            custStr, servStr, angryStr,
-            incStr, billStr, foodStr, tipStr,
-            sesCount, qCount
+            dayStr, moneyStr, repStr, custStr, servStr, angryStr,
+            incStr, billStr, foodStr, tipStr, sesCount, qCount
         ))
     end)
 
@@ -970,10 +1016,8 @@ local function updateDashboard(snap)
         pcall(function()
             ParaStock:SetDesc(string.format(
                 "🍟 Snack%s\n🧊 Es Teh%s\n🥤 Soda%s\n☕ Kopi%s\n🍜 Mie/Nasi%s",
-                stockLabel(s.snack or 0, thr),
-                stockLabel(s.tea or 0, thr),
-                stockLabel(s.soda or 0, thr),
-                stockLabel(s.coffee or 0, thr),
+                stockLabel(s.snack or 0, thr), stockLabel(s.tea or 0, thr),
+                stockLabel(s.soda or 0, thr), stockLabel(s.coffee or 0, thr),
                 stockLabel(s.noodle or 0, thr)
             ))
         end)
@@ -983,51 +1027,39 @@ end
 
 -- ══ TAB 3: TOKO KOTA ═════════════════════════════════════════════
 local ParaTimer = Tabs.TokoKota:AddParagraph({
-    Title   = "⏰ Jadwal Restock Toko Kota",
-    Content = "Stok baru dalam: Buka 1x toko dulu (reset bersamaan saat 00:00)"
+    Title="⏰ Jadwal Restock Toko Kota",
+    Content="Stok baru dalam: Buka 1x toko dulu"
 })
 
 Tabs.TokoKota:AddButton({
-    Title       = "🚀 Teleport ke Toko Terpilih",
-    Description = "Langsung pindah ke toko yang dipilih di bawah",
-    Callback    = function()
+    Title="🚀 Teleport ke Toko Terpilih",
+    Description="Langsung pindah ke toko yang dipilih di bawah",
+    Callback=function()
         local target = STORE_LOCATIONS[selectedStoreId]
         if target then safeTeleport(target) end
     end
 })
 
 local SecEsTeh = Tabs.TokoKota:AddSection("🥤 Es Teh Segar (Buff +60%)")
-
-local ParaEsTeh = SecEsTeh:AddParagraph({
-    Title   = "Status Buff",
-    Content = "Mengecek status buff..."
-})
-
+local ParaEsTeh = SecEsTeh:AddParagraph({ Title="Status Buff", Content="Mengecek..." })
 SecEsTeh:AddDropdown("esTehChoiceDropdown", {
-    Title    = "Pilih Menu Minuman",
-    Values   = { "🧊 Es Teh Manis ($5.000 • 4 Jam)", "🍊 Es Jeruk ($7.000 • 5.5 Jam)" },
-    Multi    = false,
-    Default  = 2,
-    Callback = function(val)
-        cfg.esTehChoice = ESTEH_DISPLAY_TO_ID[val] or "es_jeruk"
-    end
+    Title="Pilih Menu Minuman",
+    Values={"🧊 Es Teh Manis ($5.000 • 4 Jam)", "🍊 Es Jeruk ($7.000 • 5.5 Jam)"},
+    Multi=false, Default=2,
+    Callback=function(val) cfg.esTehChoice = ESTEH_DISPLAY_TO_ID[val] or "es_jeruk" end
 })
-
 addToggle(SecEsTeh, "autoEsTehEnabled", "Auto Beli Saat Buff Habis", nil, false)
-
 SecEsTeh:AddButton({
-    Title    = "🥤 Beli Sekarang (1x)",
-    Callback = function() task.spawn(buyEsTeh, cfg.esTehChoice, false) end
+    Title="🥤 Beli Sekarang (1x)",
+    Callback=function() task.spawn(buyEsTeh, cfg.esTehChoice, false) end
 })
 
 local SecManualShop = Tabs.TokoKota:AddSection("🛍️ Beli Manual (Semua Toko)")
-
 SecManualShop:AddDropdown("selectedManualStore", {
-    Title    = "Pilih Toko",
-    Values   = { "💻 Toko Komputer Jaya", "🪑 Mebel Jati", "🌿 Galeri Dekorasi", "☕ Toko Alat Kafe", "🛒 Minimart 24" },
-    Multi    = false,
-    Default  = 1,
-    Callback = function(val)
+    Title="Pilih Toko",
+    Values={"💻 Toko Komputer Jaya","🪑 Mebel Jati","🌿 Galeri Dekorasi","☕ Toko Alat Kafe","🛒 Minimart 24"},
+    Multi=false, Default=1,
+    Callback=function(val)
         selectedStoreId = STORE_DISPLAY_TO_ID[val] or "computer"
         refreshManualStoreSlots()
     end
@@ -1035,13 +1067,13 @@ SecManualShop:AddDropdown("selectedManualStore", {
 
 for i = 1, MAX_SLOTS do
     StoreSlotButtons[i] = SecManualShop:AddButton({
-        Title       = "Slot " .. i,
-        Description = "Menunggu data toko...",
-        Callback    = function()
+        Title="Slot "..i,
+        Description="Menunggu data toko...",
+        Callback=function()
             local slotData = activeSlotItems[i]
             if slotData and slotData.id then
                 if slotData.qty and slotData.qty <= 0 then
-                    notify("❌ Stok Habis", slotData.name .. " sudah habis!", 2)
+                    notify("❌ Stok Habis", slotData.name.." sudah habis!", 2)
                 else
                     task.spawn(buySingleItemManual, selectedStoreId, slotData.id, slotData.priceStr or "")
                 end
@@ -1050,67 +1082,43 @@ for i = 1, MAX_SLOTS do
             end
         end
     })
-    if i > 4 then
-        setFluentButtonState(StoreSlotButtons[i], "", "", false)
-    end
+    if i > 4 then setFluentButtonState(StoreSlotButtons[i], "", "", false) end
 end
 
 -- ══ TAB 4: AUTO FARM ═════════════════════════════════════════════
 local SecWarnet = Tabs.AutoFarm:AddSection("🏪 Otomatisasi Warnet")
-
-addToggle(SecWarnet, "autoOpenEnabled", "Auto Buka Warnet", "Otomatis buka warnet kembali jika status berubah TUTUP", false, function(val)
+addToggle(SecWarnet, "autoOpenEnabled", "Auto Buka Warnet", "Otomatis buka warnet kembali jika TUTUP", false, function(val)
     lastStatus = nil
     if val and getStatus() == "TUTUP" then
         task.delay(1, function() fireAction("setOpen", {open=true}) end)
     end
 end)
-
-addToggle(SecWarnet, "autoDayEnabled", "Auto Lanjut Hari", "Otomatis klik 'Continue to Day X' / 'Lanjut ke Hari X' saat laporan harian muncul", false)
-addToggle(SecWarnet, "autoPlaceEnabled", "Auto Tempatkan Pelanggan", "Otomatis arahkan antrean pelanggan ke PC kosong", false)
+addToggle(SecWarnet, "autoDayEnabled", "Auto Lanjut Hari", "Otomatis klik tombol lanjut hari (EN & ID)", false)
+addToggle(SecWarnet, "autoPlaceEnabled", "Auto Tempatkan Pelanggan", "Otomatis arahkan antrean ke PC kosong", false)
 addToggle(SecWarnet, "autoCleanEnabled", "Auto Bersih Sampah", nil, false)
-addToggle(SecWarnet, "autoServeEnabled", "Auto Layani Semua Menu", "Otomatis masak & antar Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda", false)
+addToggle(SecWarnet, "autoServeEnabled", "Auto Layani Semua Menu",
+    "Masak & antar Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda", false)
 
 local SecDelay = Tabs.AutoFarm:AddSection("⏱️ Pengaturan Delay")
-
 SecDelay:AddSlider("reopenDelay", {
-    Title    = "Reopen Delay (detik)",
-    Default  = 6,
-    Min      = 1,
-    Max      = 15,
-    Rounding = 0,
-    Callback = function(val)
-        if type(val) == "number" then cfg.reopenDelay = val end
-    end
+    Title="Reopen Delay (detik)", Default=6, Min=1, Max=15, Rounding=0,
+    Callback=function(val) if type(val)=="number" then cfg.reopenDelay=val end end
 })
-
 SecDelay:AddSlider("continueDelay", {
-    Title    = "Continue Day Delay (detik)",
-    Default  = 2,
-    Min      = 1,
-    Max      = 10,
-    Rounding = 0,
-    Callback = function(val)
-        if type(val) == "number" then cfg.continueDelay = val end
-    end
+    Title="Continue Day Delay (detik)", Default=2, Min=1, Max=10, Rounding=0,
+    Callback=function(val) if type(val)=="number" then cfg.continueDelay=val end end
 })
 
 local SecPlayer = Tabs.AutoFarm:AddSection("🏃 Player & Anti AFK")
-
 addToggle(SecPlayer, "antiAfkEnabled", "🛡️ Anti AFK", nil, true)
-
 addToggle(SecPlayer, "walkSpeedEnabled", "Custom WalkSpeed", nil, false, function(val)
     local hum = getHumanoid()
     if hum then hum.WalkSpeed = val and cfg.walkSpeedValue or 16 end
 end)
-
 SecPlayer:AddSlider("walkSpeedValue", {
-    Title    = "Kecepatan Lari (WalkSpeed)",
-    Default  = 32,
-    Min      = 16,
-    Max      = 150,
-    Rounding = 0,
-    Callback = function(val)
-        if type(val) == "number" then
+    Title="Kecepatan Lari (WalkSpeed)", Default=32, Min=16, Max=150, Rounding=0,
+    Callback=function(val)
+        if type(val)=="number" then
             cfg.walkSpeedValue = val
             if cfg.walkSpeedEnabled then
                 local hum = getHumanoid()
@@ -1122,23 +1130,16 @@ SecPlayer:AddSlider("walkSpeedValue", {
 
 -- ══ TAB 5: SETTINGS ══════════════════════════════════════════════
 local SecWebhook = Tabs.Settings:AddSection("🔔 Discord Webhook")
-
 addToggle(SecWebhook, "webhookEnabled", "Kirim Notif Auto Buy", nil, false)
-
 SecWebhook:AddInput("webhookUrlInput", {
-    Title       = "Webhook URL",
-    Default     = "",
-    Placeholder = "https://discord.com/api/webhooks/...",
-    Numeric     = false,
-    Finished    = false,
-    Callback    = function(val)
-        if type(val) == "string" then cfg.webhookUrl = val end
-    end
+    Title="Webhook URL", Default="",
+    Placeholder="https://discord.com/api/webhooks/...",
+    Numeric=false, Finished=false,
+    Callback=function(val) if type(val)=="string" then cfg.webhookUrl=val end end
 })
-
 SecWebhook:AddButton({
-    Title    = "📨 Test Kirim Webhook",
-    Callback = function()
+    Title="📨 Test Kirim Webhook",
+    Callback=function()
         task.spawn(function()
             local ok, msg = sendWebhook("✅ Webhook Terhubung!", "Warnetopia Hub siap kirim notif.", 5763719)
             notify(ok and "✅ Berhasil" or "❌ Gagal", msg, 3)
@@ -1161,6 +1162,7 @@ if SaveManager then
         SaveManager:IgnoreThemeSettings()
         SaveManager:SetIgnoreIndexes({ "selectedManualStore" })
         SaveManager:BuildConfigSection(Tabs.Settings)
+        SaveManager:LoadAutoloadConfig()
     end)
 end
 
@@ -1211,15 +1213,15 @@ local function syncFromGameUI()
         for _, obj in ipairs(ui:GetDescendants()) do
             if (obj:IsA("TextButton") or obj:IsA("TextLabel")) and obj.Visible then
                 local t = obj.Text or ""
-                if t == "Beli" or t == "Habis" or t == "Buy" or t == "Sold Out" then
+                if t=="Beli" or t=="Habis" or t=="Buy" or t=="Sold Out" then
                     local cardFrame = obj.Parent
                     while cardFrame and cardFrame:IsA("GuiObject") do
-                        if cardFrame.AbsoluteSize.X >= 85 and cardFrame.AbsoluteSize.X <= 260 and cardFrame.AbsoluteSize.Y >= 115 then break end
+                        if cardFrame.AbsoluteSize.X>=85 and cardFrame.AbsoluteSize.X<=260 and cardFrame.AbsoluteSize.Y>=115 then break end
                         cardFrame = cardFrame.Parent
                     end
                     if cardFrame and not seenParents[cardFrame] then
                         seenParents[cardFrame] = true
-                        local qtyNum = (t == "Habis" or t == "Sold Out") and 0 or nil
+                        local qtyNum = (t=="Habis" or t=="Sold Out") and 0 or nil
                         local bestTitle, bestY = nil, math.huge
                         local lowestPrice, highestPrice = nil, nil
                         for _, child in ipairs(cardFrame:GetDescendants()) do
@@ -1248,13 +1250,15 @@ local function syncFromGameUI()
 
                         local cardDisc = discountPercent
                         if highestPrice and lowestPrice and highestPrice > lowestPrice then
-                            cardDisc = math.floor(((highestPrice - lowestPrice) / highestPrice) * 100 + 0.5)
+                            cardDisc = math.floor(((highestPrice-lowestPrice)/highestPrice)*100+0.5)
                             if cardDisc > 0 and discountPercent == 0 then discountPercent = cardDisc end
                         end
 
                         if bestTitle then
-                            table.insert(cards, { x=cardFrame.AbsolutePosition.X, y=cardFrame.AbsolutePosition.Y,
-                                title=bestTitle, qty=qtyNum or 0, price=lowestPrice, discPct=cardDisc })
+                            table.insert(cards, {
+                                x=cardFrame.AbsolutePosition.X, y=cardFrame.AbsolutePosition.Y,
+                                title=bestTitle, qty=qtyNum or 0, price=lowestPrice, discPct=cardDisc
+                            })
                         end
                     end
                 end
@@ -1262,9 +1266,9 @@ local function syncFromGameUI()
         end
 
         if #cards > 0 then
-            table.sort(cards, function(a, b)
-                if math.abs(a.y - b.y) > 25 then return a.y < b.y end
-                return a.x < b.x
+            table.sort(cards, function(a,b)
+                if math.abs(a.y-b.y)>25 then return a.y<b.y end
+                return a.x<b.x
             end)
 
             storeOrderedUI[detectedStoreId] = storeOrderedUI[detectedStoreId] or {}
@@ -1377,8 +1381,8 @@ local function processSnap(snap)
             safeTeleport(targetCFrame)
             task.wait(0.45)
             for _, itemData in ipairs(items) do
-                local stillEnabled = (storeId == "minimart" and cfg.autoMinimartEnabled)
-                                  or (storeId ~= "minimart" and cfg.autoBuyEnabled)
+                local stillEnabled = (storeId=="minimart" and cfg.autoMinimartEnabled)
+                                  or (storeId~="minimart" and cfg.autoBuyEnabled)
                 if not stillEnabled then break end
                 local boughtCount = 0
                 for i = 1, itemData.qty do
@@ -1389,8 +1393,8 @@ local function processSnap(snap)
                 if boughtCount > 0 then
                     local itemInfo = BY_ID[itemData.id]
                     local itemName = (itemInfo and itemInfo.name) or itemData.id
-                    local rarityTag = (itemInfo and itemInfo.rarity == "sangat_langka" and " [★★]")
-                                   or (itemInfo and itemInfo.rarity == "langka" and " [★]") or ""
+                    local rarityTag = (itemInfo and itemInfo.rarity=="sangat_langka" and " [★★]")
+                                   or (itemInfo and itemInfo.rarity=="langka" and " [★]") or ""
                     table.insert(boughtLog, string.format("• **%s**%s (x%d) — *%s*",
                         itemName, rarityTag, boughtCount, STORE_ID_TO_NAME[storeId] or storeId))
                 end
@@ -1456,7 +1460,7 @@ RunService.Heartbeat:Connect(function(dt)
         esTehTimer = 0
         local ok, buffTxt = pcall(getFreshBuffText)
         if ok and buffTxt then
-            pcall(function() ParaEsTeh:SetDesc("⚡ Aktif: " .. buffTxt) end)
+            pcall(function() ParaEsTeh:SetDesc("⚡ Aktif: "..buffTxt) end)
         else
             pcall(function() ParaEsTeh:SetDesc("💤 Status Buff: Tidak aktif / Habis") end)
             if cfg.autoEsTehEnabled and not isBuying and not isCleaning and not isServing
@@ -1474,7 +1478,7 @@ RunService.Heartbeat:Connect(function(dt)
         if restockEndClock then
             local rem = restockEndClock - os.clock()
             if rem > 0 then
-                pcall(function() ParaTimer:SetDesc("Stok baru dalam: " .. formatTime(rem)) end)
+                pcall(function() ParaTimer:SetDesc("Stok baru dalam: "..formatTime(rem)) end)
             else
                 table.clear(storeOrderedUI)
                 pcall(function() ParaTimer:SetDesc("Sedang Restock (00:00)...") end)
@@ -1483,8 +1487,7 @@ RunService.Heartbeat:Connect(function(dt)
     end
 
     if not cfg.autoOpenEnabled and not cfg.autoDayEnabled then
-        lastStatus = nil
-        return
+        lastStatus = nil return
     end
 
     checkTimer = checkTimer + dt
@@ -1502,7 +1505,7 @@ RunService.Heartbeat:Connect(function(dt)
                 fireAction("dayContinue", {})
                 task.wait(cfg.reopenDelay)
                 if cfg.autoOpenEnabled and getStatus() == "TUTUP" then
-                    fireAction("setOpen", { open=true })
+                    fireAction("setOpen", {open=true})
                 end
             end
             continuePending = false
@@ -1520,7 +1523,7 @@ RunService.Heartbeat:Connect(function(dt)
         task.spawn(function()
             task.wait(cfg.reopenDelay)
             if cfg.autoOpenEnabled and getStatus() == "TUTUP" then
-                fireAction("setOpen", { open=true })
+                fireAction("setOpen", {open=true})
             end
             reopenPending = false
         end)
@@ -1531,7 +1534,7 @@ RunService.Heartbeat:Connect(function(dt)
         task.spawn(function()
             task.wait(1)
             if cfg.autoOpenEnabled and getStatus() == "TUTUP" then
-                fireAction("setOpen", { open=true })
+                fireAction("setOpen", {open=true})
             end
             reopenPending = false
         end)
@@ -1540,12 +1543,8 @@ RunService.Heartbeat:Connect(function(dt)
     lastStatus = status
 end)
 
--- ─── TOMBOL MELAYANG MOBILE (BUKA / TUTUP FLUENT) ─────────────────
+-- ─── MOBILE TOGGLE BUTTON ────────────────────────────────────────
 if isMobile then
-    local pg = LocalPlayer:WaitForChild("PlayerGui")
-    local existing = pg:FindFirstChild("MobileToggle")
-    if existing then existing:Destroy() end
-
     local MobileGui = Instance.new("ScreenGui")
     MobileGui.Name           = "MobileToggle"
     MobileGui.ResetOnSpawn   = false
@@ -1569,7 +1568,7 @@ if isMobile then
 
     Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 14)
     local stroke = Instance.new("UIStroke", Btn)
-    stroke.Color     = Color3.fromRGB(110, 90, 210)
+    stroke.Color = Color3.fromRGB(110, 90, 210)
     stroke.Thickness = 2
 
     local isDragging  = false
@@ -1607,5 +1606,5 @@ if isMobile then
     end)
 end
 
-notify("Warnetopia Hub 🖤", "Fluent UI (Toggle Asli + EN/ID DayReport) siap!", 4)
-print("[Hub] 🖤 Warnetopia Hub loaded!")
+notify("Warnetopia Hub 🖤", "Loaded! | by Realx13", 4)
+print("[Hub] 🖤 Warnetopia Hub Fluent loaded!")
