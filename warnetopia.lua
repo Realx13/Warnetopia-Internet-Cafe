@@ -207,15 +207,54 @@ local function returnToOrigin(origCFrame)
     safeTeleport(origCFrame)
 end
 
-local function isGuiTrulyVisible(obj)
-    if not obj or not obj:IsA("GuiObject") or not obj.Visible then return false end
-    local curr = obj.Parent
-    while curr and curr:IsA("GuiObject") do
-        if not curr.Visible then return false end
-        curr = curr.Parent
+local function isObjTrulyVisible(obj)
+        if not obj or not obj:IsA("GuiObject") or not obj.Visible then return false end
+        local curr = obj.Parent
+        while curr and curr:IsA("GuiObject") do
+            if not curr.Visible then return false end
+            curr = curr.Parent
+        end
+        return true
     end
-    return true
-end
+
+    local function dispatchTouchAsMouse(pos2D, isBegin)
+        if not hubGui or not hubGui.Enabled then return end
+        local fakeInp = createFakeMouseInput(
+            pos2D,
+            isBegin and Enum.UserInputState.Begin or Enum.UserInputState.End
+        )
+
+        for _, obj in ipairs(hubGui:GetDescendants()) do
+            if isObjTrulyVisible(obj) and obj.Name ~= "MobileDragHeader" and obj.Name ~= "MobileResizeHandle" then
+                local p = obj.AbsolutePosition
+                local s = obj.AbsoluteSize
+                if s.X > 0 and s.Y > 0
+                and pos2D.X >= p.X and pos2D.X <= (p.X + s.X)
+                and pos2D.Y >= p.Y and pos2D.Y <= (p.Y + s.Y) then
+                    if isBegin then
+                        if obj:IsA("TextBox") then
+                            pcall(function() obj:CaptureFocus() end)
+                        end
+                        if firesignal then
+                            pcall(function() firesignal(obj.InputBegan, fakeInp) end)
+                            if obj:IsA("GuiButton") then
+                                pcall(function() firesignal(obj.MouseButton1Down) end)
+                                pcall(function() firesignal(obj.MouseButton1Click) end)
+                                pcall(function() firesignal(obj.Activated) end)
+                            end
+                        end
+                    else
+                        if firesignal then
+                            pcall(function() firesignal(obj.InputEnded, fakeInp) end)
+                            if obj:IsA("GuiButton") then
+                                pcall(function() firesignal(obj.MouseButton1Up) end)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
 
 local function getAllGuiRoots()
     local roots = {}
