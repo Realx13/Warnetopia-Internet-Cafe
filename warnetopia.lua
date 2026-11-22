@@ -14,7 +14,7 @@
     ✅ Dashboard Real-Time + Low Stock Alert
     ✅ WalkSpeed Custom & Anti AFK
     ✅ Discord Webhook & Save/Load Config
-    ✅ Mobile Toggle Button + Touch-to-Mouse Bridge + Auto-Resize Layar HP
+    ✅ Mobile Toggle Button + Scrollable Columns + Drag & Resize Window
     Credit: Realx13
 --]]
 
@@ -788,7 +788,7 @@ end
 
 -- ─── BUILD LINORIA UI ─────────────────────────────────────────────
 local initialWindowSize = UserInputService.TouchEnabled
-    and UDim2.fromOffset(480, 320)
+    and UDim2.fromOffset(500, 340)
     or UDim2.fromOffset(780, 650)
 
 local Window = Library:CreateWindow({
@@ -880,7 +880,7 @@ AlertBox:AddToggle('stockAlertEnabled', {
     Callback = function(val) cfg.stockAlertEnabled = val end,
 })
 AlertBox:AddSlider('stockThreshold', {
-    Text     = 'Threshold (warning kalau < X)',
+    Text     = 'Batas Stok Min.',
     Min      = 5,
     Max      = 50,
     Default  = 10,
@@ -1509,7 +1509,7 @@ SaveManager:LoadAutoloadConfig()
 Library:SetWatermark('Warnetopia Hub 🖤 | by Realx13')
 Library.Toggled = true
 
--- ─── MOBILE TOGGLE BUTTON & TOUCH-TO-MOUSE BRIDGE ───────────────
+-- ─── MOBILE TOGGLE, SCROLL, DRAG & RESIZE SUPPORT ───────────────
 if UserInputService.TouchEnabled then
     local pg = LocalPlayer:WaitForChild("PlayerGui")
     local existing = pg:FindFirstChild("MobileToggle")
@@ -1538,16 +1538,134 @@ if UserInputService.TouchEnabled then
     end
 
     local hubGui = findHubScreenGui()
+    local mainFrame = nil
+
+    -- Ubah wadah kolom kiri & kanan di setiap tab menjadi ScrollingFrame agar tidak meluber
+    local function makeColumnsScrollable(rootFrame)
+        for _, obj in ipairs(rootFrame:GetDescendants()) do
+            if obj:IsA("Frame") and obj.ClipsDescendants then
+                for _, child in ipairs(obj:GetChildren()) do
+                    if child:IsA("Frame") and child:FindFirstChildOfClass("UIListLayout") and child.AbsoluteSize.Y > 180 then
+                        local layout = child:FindFirstChildOfClass("UIListLayout")
+                        local scroll = Instance.new("ScrollingFrame")
+                        scroll.Name                   = child.Name .. "_Scroll"
+                        scroll.Size                   = child.Size
+                        scroll.Position               = child.Position
+                        scroll.AnchorPoint            = child.AnchorPoint
+                        scroll.BackgroundTransparency = 1
+                        scroll.BorderSizePixel        = 0
+                        scroll.ScrollBarThickness     = 4
+                        scroll.ScrollBarImageColor3   = Color3.fromRGB(120, 90, 200)
+                        scroll.ScrollingDirection     = Enum.ScrollingDirection.Y
+                        scroll.CanvasSize             = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 24)
+                        scroll.ZIndex                 = child.ZIndex
+                        scroll.Parent                 = child.Parent
+
+                        for _, item in ipairs(child:GetChildren()) do
+                            item.Parent = scroll
+                        end
+
+                        layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                            scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 24)
+                        end)
+                        child:Destroy()
+                    end
+                end
+            end
+        end
+    end
 
     if hubGui then
         hubGui.DisplayOrder = 500
         for _, frame in ipairs(hubGui:GetChildren()) do
             if frame:IsA("Frame") and frame.AbsoluteSize.X > 400 then
-                frame.Size = UDim2.fromOffset(480, 320)
-                frame.Position = UDim2.new(0.5, -240, 0.5, -160)
+                mainFrame = frame
+                frame.Size = UDim2.fromOffset(500, 340)
+                frame.Position = UDim2.new(0.5, -250, 0.5, -170)
+                frame.ClipsDescendants = true
                 break
             end
         end
+
+        task.defer(function()
+            if mainFrame then
+                makeColumnsScrollable(mainFrame)
+
+                -- 1. Drag Header Atas untuk memindahkan posisi GUI
+                local dragHeader = Instance.new("TextButton")
+                dragHeader.Name                   = "MobileDragHeader"
+                dragHeader.Size                   = UDim2.new(1, 0, 0, 28)
+                dragHeader.Position               = UDim2.new(0, 0, 0, 0)
+                dragHeader.BackgroundTransparency = 1
+                dragHeader.Text                   = ""
+                dragHeader.ZIndex                 = 50
+                dragHeader.Parent                 = mainFrame
+
+                local draggingWin = false
+                local dragStartPos, frameStartPos
+
+                dragHeader.InputBegan:Connect(function(inp)
+                    if inp.UserInputType == Enum.UserInputType.Touch then
+                        draggingWin   = true
+                        dragStartPos  = inp.Position
+                        frameStartPos = mainFrame.Position
+                    end
+                end)
+                dragHeader.InputChanged:Connect(function(inp)
+                    if draggingWin and inp.UserInputType == Enum.UserInputType.Touch then
+                        local delta = inp.Position - dragStartPos
+                        mainFrame.Position = UDim2.new(
+                            frameStartPos.X.Scale, frameStartPos.X.Offset + delta.X,
+                            frameStartPos.Y.Scale, frameStartPos.Y.Offset + delta.Y
+                        )
+                    end
+                end)
+                dragHeader.InputEnded:Connect(function(inp)
+                    if inp.UserInputType == Enum.UserInputType.Touch then
+                        draggingWin = false
+                    end
+                end)
+
+                -- 2. Handle Pojok Kanan Bawah untuk mengubah ukuran (Resize) GUI
+                local resizeBtn = Instance.new("TextButton")
+                resizeBtn.Name                   = "MobileResizeHandle"
+                resizeBtn.Size                   = UDim2.fromOffset(26, 26)
+                resizeBtn.Position               = UDim2.new(1, -26, 1, -26)
+                resizeBtn.BackgroundColor3       = Color3.fromRGB(30, 30, 45)
+                resizeBtn.BackgroundTransparency = 0.2
+                resizeBtn.BorderSizePixel        = 0
+                resizeBtn.Text                   = "◢"
+                resizeBtn.TextColor3             = Color3.fromRGB(140, 110, 230)
+                resizeBtn.TextSize               = 16
+                resizeBtn.Font                   = Enum.Font.GothamBold
+                resizeBtn.ZIndex                 = 60
+                resizeBtn.Parent                 = mainFrame
+
+                local resizingWin = false
+                local resizeStartTouch, resizeStartSize
+
+                resizeBtn.InputBegan:Connect(function(inp)
+                    if inp.UserInputType == Enum.UserInputType.Touch then
+                        resizingWin      = true
+                        resizeStartTouch = inp.Position
+                        resizeStartSize  = mainFrame.AbsoluteSize
+                    end
+                end)
+                resizeBtn.InputChanged:Connect(function(inp)
+                    if resizingWin and inp.UserInputType == Enum.UserInputType.Touch then
+                        local delta = inp.Position - resizeStartTouch
+                        local newW = math.clamp(resizeStartSize.X + delta.X, 380, 820)
+                        local newH = math.clamp(resizeStartSize.Y + delta.Y, 240, 650)
+                        mainFrame.Size = UDim2.fromOffset(newW, newH)
+                    end
+                end)
+                resizeBtn.InputEnded:Connect(function(inp)
+                    if inp.UserInputType == Enum.UserInputType.Touch then
+                        resizingWin = false
+                    end
+                end)
+            end
+        end)
     end
 
     -- Konversi sentuhan jari menjadi MouseButton1 untuk LinoriaLib
@@ -1575,7 +1693,7 @@ if UserInputService.TouchEnabled then
         )
 
         for _, obj in ipairs(hubGui:GetDescendants()) do
-            if obj:IsA("GuiObject") and obj.Visible then
+            if obj:IsA("GuiObject") and obj.Visible and obj.Name ~= "MobileDragHeader" and obj.Name ~= "MobileResizeHandle" then
                 local p = obj.AbsolutePosition
                 local s = obj.AbsoluteSize
                 if pos2D.X >= p.X and pos2D.X <= (p.X + s.X)
@@ -1605,15 +1723,18 @@ if UserInputService.TouchEnabled then
         end
     end
 
+    local touchStartPoint = Vector2.zero
     UserInputService.TouchStarted:Connect(function(touch, _)
         if not hubGui or not hubGui.Parent then hubGui = findHubScreenGui() end
-        local pos = Vector2.new(touch.Position.X, touch.Position.Y)
-        dispatchTouchAsMouse(pos, true)
+        touchStartPoint = Vector2.new(touch.Position.X, touch.Position.Y)
+        dispatchTouchAsMouse(touchStartPoint, true)
     end)
 
     UserInputService.TouchEnded:Connect(function(touch, _)
         local pos = Vector2.new(touch.Position.X, touch.Position.Y)
-        dispatchTouchAsMouse(pos, false)
+        if (pos - touchStartPoint).Magnitude < 12 then
+            dispatchTouchAsMouse(pos, false)
+        end
     end)
 
     -- Tombol Melayang Buka/Tutup GUI
@@ -1692,7 +1813,7 @@ if UserInputService.TouchEnabled then
         isDragging = false
     end)
 
-    print("[Hub] 📱 Mobile Touch-to-Mouse Bridge aktif!")
+    print("[Hub] 📱 Mobile Scroll, Drag & Resize aktif!")
 end
 
 print('[Hub] 🖤 Warnetopia Hub loaded! RightShift = hide/show')
