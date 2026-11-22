@@ -950,7 +950,7 @@ for i = 1, MAX_SLOTS do
 end
 
 -- ══ TAB 3: AUTO OPEN & WARNET ════════════════════════════════════
-local OpenTab = Window:AddTab('Auto Open')
+local OpenTab = Window:AddTab('Auto Farm')
 local OpenBox = OpenTab:AddLeftGroupbox('🏪 Warnet')
 
 OpenBox:AddToggle('autoOpenEnabled', {
