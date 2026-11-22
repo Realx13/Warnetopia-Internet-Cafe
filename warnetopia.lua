@@ -14,7 +14,7 @@
     ✅ Dashboard Real-Time + Low Stock Alert
     ✅ WalkSpeed Custom & Anti AFK
     ✅ Discord Webhook & Save/Load Config
-    ✅ Mobile Toggle Button (Khusus GUI Linoria + Auto-Resize Layar HP)
+    ✅ Mobile Toggle Button (Target Presisi Linoria + Auto-Resize Layar HP)
     Credit: Realx13
 --]]
 
@@ -1506,23 +1506,54 @@ end)
 
 SaveManager:LoadAutoloadConfig()
 
+Library:SetWatermark('Warnetopia Hub 🖤 | by Realx13')
+Library.Toggled = true
+
 -- ─── MOBILE TOGGLE BUTTON ────────────────────────────────────────
 if UserInputService.TouchEnabled then
-    pcall(function()
-        if Library.MainFrame then
-            Library.MainFrame.Size = UDim2.fromOffset(480, 320)
-            Library.MainFrame.Position = UDim2.new(0.5, -240, 0.5, -160)
-        end
-    end)
-
     local pg = LocalPlayer:WaitForChild("PlayerGui")
     local existing = pg:FindFirstChild("MobileToggle")
     if existing then existing:Destroy() end
 
+    -- Cari ScreenGui yang benar-benar milik menu Warnetopia Hub
+    local function findHubScreenGui()
+        local roots = { pg }
+        pcall(function() table.insert(roots, game:GetService("CoreGui")) end)
+        if gethui then
+            pcall(function() table.insert(roots, gethui()) end)
+        end
+
+        for _, root in ipairs(roots) do
+            for _, gui in ipairs(root:GetChildren()) do
+                if gui:IsA("ScreenGui") and gui.Name ~= "WarnetopiaUI" and gui.Name ~= "MobileToggle" then
+                    for _, desc in ipairs(gui:GetDescendants()) do
+                        if desc:IsA("TextLabel") and desc.Text == "Auto Buy Rare ON/OFF" then
+                            return gui
+                        end
+                    end
+                end
+            end
+        end
+        return nil
+    end
+
+    local hubGui = findHubScreenGui()
+
+    -- Perkecil window otomatis agar pas di layar HP
+    if hubGui then
+        for _, frame in ipairs(hubGui:GetChildren()) do
+            if frame:IsA("Frame") and frame.AbsoluteSize.X > 400 then
+                frame.Size = UDim2.fromOffset(480, 320)
+                frame.Position = UDim2.new(0.5, -240, 0.5, -160)
+                break
+            end
+        end
+    end
+
     local MobileGui = Instance.new("ScreenGui")
     MobileGui.Name           = "MobileToggle"
     MobileGui.ResetOnSpawn   = false
-    MobileGui.DisplayOrder   = 9999
+    MobileGui.DisplayOrder   = 99999
     MobileGui.IgnoreGuiInset = true
     MobileGui.Parent         = pg
 
@@ -1536,7 +1567,7 @@ if UserInputService.TouchEnabled then
     Btn.Text                   = "🖤"
     Btn.TextSize               = 24
     Btn.Font                   = Enum.Font.GothamBold
-    Btn.ZIndex                 = 9999
+    Btn.ZIndex                 = 99999
     Btn.AutoButtonColor        = false
     Btn.Modal                  = true
     Btn.Parent                 = MobileGui
@@ -1553,42 +1584,16 @@ if UserInputService.TouchEnabled then
     local startBtnPos = UDim2.new()
     local touchActive = false
 
-    local function getLinoriaGuis()
-        local list = {}
-        local containers = {}
-        pcall(function() table.insert(containers, game:GetService("CoreGui")) end)
-        if gethui then
-            pcall(function() table.insert(containers, gethui()) end)
-        end
-        for _, root in ipairs(containers) do
-            for _, g in ipairs(root:GetChildren()) do
-                if g:IsA("ScreenGui") then
-                    for _, d in ipairs(g:GetDescendants()) do
-                        if d:IsA("TextLabel") and (d.Text or ""):find("Warnetopia Hub", 1, true) then
-                            table.insert(list, g)
-                            break
-                        end
-                    end
-                end
-            end
-        end
-        return list
-    end
-
     local function toggleGui()
         guiVisible = not guiVisible
         Btn.Text = guiVisible and "🖤" or "👁"
 
-        if type(Library.Toggle) == "function" then
-            pcall(function()
-                if Library.Toggled ~= guiVisible then
-                    Library.Toggle()
-                end
-            end)
+        if not hubGui or not hubGui.Parent then
+            hubGui = findHubScreenGui()
         end
 
-        for _, g in ipairs(getLinoriaGuis()) do
-            g.Enabled = guiVisible
+        if hubGui then
+            hubGui.Enabled = guiVisible
         end
         pcall(function() Library.Toggled = guiVisible end)
     end
@@ -1626,8 +1631,5 @@ if UserInputService.TouchEnabled then
 
     print("[Hub] 📱 Mobile ready — tap 🖤 buka/tutup GUI, drag pindahin tombol")
 end
-
-Library:SetWatermark('Warnetopia Hub 🖤 | by Realx13')
-Library.Toggled = true
 
 print('[Hub] 🖤 Warnetopia Hub loaded! RightShift = hide/show')
