@@ -14,7 +14,7 @@
     ✅ Dashboard Real-Time + Low Stock Alert
     ✅ WalkSpeed Custom & Anti AFK
     ✅ Discord Webhook & Save/Load Config
-    ✅ Mobile Toggle Button + Full Touch Support + Auto-Resize Layar HP
+    ✅ Mobile Toggle Button + Touch-to-Mouse Bridge + Auto-Resize Layar HP
     Credit: Realx13
 --]]
 
@@ -1509,7 +1509,7 @@ SaveManager:LoadAutoloadConfig()
 Library:SetWatermark('Warnetopia Hub 🖤 | by Realx13')
 Library.Toggled = true
 
--- ─── MOBILE TOGGLE BUTTON & TOUCH SUPPORT ───────────────────────
+-- ─── MOBILE TOGGLE BUTTON & TOUCH-TO-MOUSE BRIDGE ───────────────
 if UserInputService.TouchEnabled then
     local pg = LocalPlayer:WaitForChild("PlayerGui")
     local existing = pg:FindFirstChild("MobileToggle")
@@ -1539,9 +1539,8 @@ if UserInputService.TouchEnabled then
 
     local hubGui = findHubScreenGui()
 
-    -- Perkecil window otomatis agar pas di layar HP & aktifkan input sentuh
     if hubGui then
-        hubGui.DisplayOrder = 100
+        hubGui.DisplayOrder = 500
         for _, frame in ipairs(hubGui:GetChildren()) do
             if frame:IsA("Frame") and frame.AbsoluteSize.X > 400 then
                 frame.Size = UDim2.fromOffset(480, 320)
@@ -1549,32 +1548,75 @@ if UserInputService.TouchEnabled then
                 break
             end
         end
-
-        -- Jembatan sentuh layar HP agar tombol, tab, toggle, dan slider Linoria bisa dipencet
-        local function enableTouchOnObj(obj)
-            if obj:IsA("GuiButton") then
-                obj.Active = true
-                obj.TouchTap:Connect(function()
-                    if firesignal then
-                        pcall(function() firesignal(obj.MouseButton1Click) end)
-                        pcall(function() firesignal(obj.Activated) end)
-                    end
-                end)
-            elseif obj:IsA("Frame") or obj:IsA("TextLabel") then
-                obj.InputBegan:Connect(function(inp)
-                    if inp.UserInputType == Enum.UserInputType.Touch and firesignal then
-                        pcall(function() firesignal(obj.InputBegan, inp) end)
-                    end
-                end)
-            end
-        end
-
-        for _, desc in ipairs(hubGui:GetDescendants()) do
-            enableTouchOnObj(desc)
-        end
-        hubGui.DescendantAdded:Connect(enableTouchOnObj)
     end
 
+    -- Konversi sentuhan jari menjadi MouseButton1 untuk LinoriaLib
+    local function createFakeMouseInput(posVector, state)
+        return setmetatable({
+            UserInputType  = Enum.UserInputType.MouseButton1,
+            UserInputState = state or Enum.UserInputState.Begin,
+            Position       = Vector3.new(posVector.X, posVector.Y, 0),
+            Delta          = Vector3.zero,
+            KeyCode        = Enum.KeyCode.Unknown,
+        }, {
+            __index = function(_, k)
+                if k == "UserInputType" then return Enum.UserInputType.MouseButton1 end
+                if k == "Position" then return Vector3.new(posVector.X, posVector.Y, 0) end
+                return nil
+            end
+        })
+    end
+
+    local function dispatchTouchAsMouse(pos2D, isBegin)
+        if not hubGui or not hubGui.Enabled then return end
+        local fakeInp = createFakeMouseInput(
+            pos2D,
+            isBegin and Enum.UserInputState.Begin or Enum.UserInputState.End
+        )
+
+        for _, obj in ipairs(hubGui:GetDescendants()) do
+            if obj:IsA("GuiObject") and obj.Visible then
+                local p = obj.AbsolutePosition
+                local s = obj.AbsoluteSize
+                if pos2D.X >= p.X and pos2D.X <= (p.X + s.X)
+                and pos2D.Y >= p.Y and pos2D.Y <= (p.Y + s.Y) then
+                    if isBegin then
+                        if obj:IsA("TextBox") then
+                            pcall(function() obj:CaptureFocus() end)
+                        end
+                        if firesignal then
+                            pcall(function() firesignal(obj.InputBegan, fakeInp) end)
+                            if obj:IsA("GuiButton") then
+                                pcall(function() firesignal(obj.MouseButton1Down) end)
+                                pcall(function() firesignal(obj.MouseButton1Click) end)
+                                pcall(function() firesignal(obj.Activated) end)
+                            end
+                        end
+                    else
+                        if firesignal then
+                            pcall(function() firesignal(obj.InputEnded, fakeInp) end)
+                            if obj:IsA("GuiButton") then
+                                pcall(function() firesignal(obj.MouseButton1Up) end)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    UserInputService.TouchStarted:Connect(function(touch, _)
+        if not hubGui or not hubGui.Parent then hubGui = findHubScreenGui() end
+        local pos = Vector2.new(touch.Position.X, touch.Position.Y)
+        dispatchTouchAsMouse(pos, true)
+    end)
+
+    UserInputService.TouchEnded:Connect(function(touch, _)
+        local pos = Vector2.new(touch.Position.X, touch.Position.Y)
+        dispatchTouchAsMouse(pos, false)
+    end)
+
+    -- Tombol Melayang Buka/Tutup GUI
     local MobileGui = Instance.new("ScreenGui")
     MobileGui.Name           = "MobileToggle"
     MobileGui.ResetOnSpawn   = false
@@ -1603,7 +1645,6 @@ if UserInputService.TouchEnabled then
 
     local guiVisible  = true
     local isDragging  = false
-    local movedPixels = 0
     local startTouch  = Vector2.new()
     local startBtnPos = UDim2.new()
     local touchActive = false
@@ -1626,15 +1667,13 @@ if UserInputService.TouchEnabled then
         if inp.UserInputType ~= Enum.UserInputType.Touch then return end
         touchActive = true
         isDragging  = false
-        movedPixels = 0
         startTouch  = Vector2.new(inp.Position.X, inp.Position.Y)
         startBtnPos = Btn.Position
         inp:GetPropertyChangedSignal("Delta"):Connect(function()
             if not touchActive then return end
             local cur = Vector2.new(inp.Position.X, inp.Position.Y)
             local delta = cur - startTouch
-            movedPixels = math.sqrt(delta.X^2 + delta.Y^2)
-            if movedPixels > 10 then
+            if math.sqrt(delta.X^2 + delta.Y^2) > 10 then
                 isDragging = true
                 Btn.Position = UDim2.new(
                     startBtnPos.X.Scale, startBtnPos.X.Offset + delta.X,
@@ -1653,7 +1692,7 @@ if UserInputService.TouchEnabled then
         isDragging = false
     end)
 
-    print("[Hub] 📱 Mobile ready — tap 🖤 buka/tutup GUI, drag pindahin tombol")
+    print("[Hub] 📱 Mobile Touch-to-Mouse Bridge aktif!")
 end
 
 print('[Hub] 🖤 Warnetopia Hub loaded! RightShift = hide/show')
