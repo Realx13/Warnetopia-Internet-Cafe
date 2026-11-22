@@ -1,26 +1,10 @@
 --[[
-    Warnetopia Hub — Full Script (Fluent UI — Tombol Status 🟢 [ON] / 🔴 [OFF] & EN/ID DayReport)
+    Warnetopia Hub — Full Script (Fluent UI Asli AddToggle + EN/ID DayReport)
     UI: Fluent (Multi-Mirror Loader + Safe Addons)
-    Features:
-    ✅ Multi-Mirror Loader (Anti Line-1 nil value di HP / Cloud Phone)
-    ✅ Tombol Status 🟢 [ON] / 🔴 [OFF] berbasis AddButton (100% bebas bug memantul mati di HP)
-    ✅ Pembersih UI Fluent lama otomatis sebelum jendela baru dibuat
-    ✅ VirtualInputManager + firesignal pada clickGuiButton (Auto klik Continue to Day X / Lanjut ke Hari X)
-    ✅ Auto Buy Rare Items (Komputer, Mebel, Dekorasi)
-    ✅ Auto Restock Minimart
-    ✅ Manual Buy Semua Toko (15 Slot + Timer Restock)
-    ✅ Auto Buka Warnet
-    ✅ Auto Tempatkan Pelanggan
-    ✅ Auto Bersih Sampah
-    ✅ Auto Layani Semua Menu (Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda)
-    ✅ Auto Buff Es Teh Segar / Es Jeruk
-    ✅ Dashboard Real-Time + Low Stock Alert
-    ✅ WalkSpeed Custom & Anti AFK
-    ✅ Discord Webhook & Save/Load Config Manual
     Credit: Realx13
 --]]
 
--- ─── MULTI-MIRROR SAFE LOADER (ANTI LINE 1 NIL) ───────────────────
+-- ─── MULTI-MIRROR SAFE LOADER ────────────────────────────────────
 local function safeLoad(urls, name)
     for _, url in ipairs(urls) do
         local okHttp, body = pcall(function() return game:HttpGet(url) end)
@@ -44,7 +28,7 @@ local Fluent = safeLoad({
 }, "Fluent")
 
 if not Fluent then
-    warn("[Hub] Semua mirror Fluent gagal dimuat! Cek koneksi atau izin HttpGet executor.")
+    warn("[Hub] Semua mirror Fluent gagal dimuat!")
     return
 end
 
@@ -292,7 +276,6 @@ local function clickGuiButton(btn)
             pcall(function() firesignal(t.Activated) end)
         end
     end
-    -- Tap langsung ke titik tengah tombol via VirtualInputManager (ampuh di executor HP)
     pcall(function()
         local pos  = btn.AbsolutePosition
         local size = btn.AbsoluteSize
@@ -852,35 +835,16 @@ local Tabs = {
     Settings  = Window:AddTab({ Title = "Settings",   Icon = "settings" }),
 }
 
--- ─── TOMBOL STATUS 🟢 [ON] / 🔴 [OFF] (PENGGANTI ADDTOGGLE) ───────
-local toggleLastChange = {}
-
-local function addLockedToggle(section, id, title, desc, defaultVal, extraCallback)
+-- ─── TOGGLE ASLI FLUENT (CLEAN CALLBACK) ─────────────────────────
+local function addToggle(section, id, title, desc, defaultVal, extraCallback)
     cfg[id] = defaultVal
-    local btnObj
-    local function formatLabel(state)
-        return (state and "🟢 [ON]  " or "🔴 [OFF] ") .. title
-    end
-
-    btnObj = section:AddButton({
-        Title       = formatLabel(defaultVal),
+    return section:AddToggle(id, {
+        Title       = title,
         Description = desc,
-        Callback    = function()
-            local now = os.clock()
-            if toggleLastChange[id] and (now - toggleLastChange[id]) < 0.35 then
-                return
-            end
-            toggleLastChange[id] = now
-
-            cfg[id] = not cfg[id]
-            pcall(function()
-                if btnObj and btnObj.SetTitle then
-                    btnObj:SetTitle(formatLabel(cfg[id]))
-                end
-            end)
-            if extraCallback then
-                extraCallback(cfg[id])
-            end
+        Default     = defaultVal,
+        Callback    = function(val)
+            cfg[id] = (val == true)
+            if extraCallback then extraCallback(cfg[id]) end
         end
     })
 end
@@ -888,7 +852,7 @@ end
 -- ══ TAB 1: AUTO BUY ══════════════════════════════════════════════
 local SecAutoBuy = Tabs.AutoBuy:AddSection("⚙️ Auto Buy Rare")
 
-addLockedToggle(SecAutoBuy, "autoBuyEnabled", "Auto Buy Rare", "Otomatis teleport & beli item langka dari toko kota", false)
+addToggle(SecAutoBuy, "autoBuyEnabled", "Auto Buy Rare ON/OFF", "Otomatis teleport & beli item langka dari toko kota", false)
 
 SecAutoBuy:AddSlider("minTier", {
     Title       = "Minimum Tier",
@@ -904,18 +868,18 @@ SecAutoBuy:AddSlider("minTier", {
 
 local SecRarity = Tabs.AutoBuy:AddSection("✨ Rarity Filter")
 
-addLockedToggle(SecRarity, "rarityLangka", "Langka (★)", nil, true)
-addLockedToggle(SecRarity, "raritySangat", "Sangat Langka (★★)", nil, true)
+addToggle(SecRarity, "rarityLangka", "Langka (★)", nil, true)
+addToggle(SecRarity, "raritySangat", "Sangat Langka (★★)", nil, true)
 
 local SecToko = Tabs.AutoBuy:AddSection("🏪 Target Toko Rare")
 
-addLockedToggle(SecToko, "store_computer", "💻 Toko Komputer Jaya", nil, true)
-addLockedToggle(SecToko, "store_furniture", "🪑 Mebel Jati", nil, true)
-addLockedToggle(SecToko, "store_decor", "🌿 Galeri Dekorasi", nil, true)
+addToggle(SecToko, "store_computer", "💻 Toko Komputer Jaya", nil, true)
+addToggle(SecToko, "store_furniture", "🪑 Mebel Jati", nil, true)
+addToggle(SecToko, "store_decor", "🌿 Galeri Dekorasi", nil, true)
 
 local SecMinimart = Tabs.AutoBuy:AddSection("🛒 Minimart 24")
 
-addLockedToggle(SecMinimart, "autoMinimartEnabled", "Auto Restock Minimart", "Borong otomatis semua stok bahan makanan di Minimart 24", false)
+addToggle(SecMinimart, "autoMinimartEnabled", "Auto Restock Minimart", "Borong otomatis semua stok bahan makanan di Minimart 24", false)
 
 -- ══ TAB 2: DASHBOARD ═════════════════════════════════════════════
 local ParaStats = Tabs.Dashboard:AddParagraph({
@@ -930,7 +894,7 @@ local ParaStock = Tabs.Dashboard:AddParagraph({
 
 local SecAlert = Tabs.Dashboard:AddSection("⚠️ Low Stock Alert")
 
-addLockedToggle(SecAlert, "stockAlertEnabled", "Aktifkan Stock Alert", "Munculkan notifikasi jika stok kafe di bawah batas", true)
+addToggle(SecAlert, "stockAlertEnabled", "Aktifkan Stock Alert", "Munculkan notifikasi jika stok kafe di bawah batas", true)
 
 SecAlert:AddSlider("stockThreshold", {
     Title    = "Batas Stok Minimum",
@@ -943,7 +907,7 @@ SecAlert:AddSlider("stockThreshold", {
     end
 })
 
-addLockedToggle(SecAlert, "webhookStockAlert", "Kirim Alert ke Discord", "Kirim peringatan stok tipis ke Webhook Discord", false)
+addToggle(SecAlert, "webhookStockAlert", "Kirim Alert ke Discord", "Kirim peringatan stok tipis ke Webhook Discord", false)
 
 local function stockLabel(qty, threshold)
     if qty <= 0 then return " [HABIS!]"
@@ -1049,7 +1013,7 @@ SecEsTeh:AddDropdown("esTehChoiceDropdown", {
     end
 })
 
-addLockedToggle(SecEsTeh, "autoEsTehEnabled", "Auto Beli Saat Buff Habis", nil, false)
+addToggle(SecEsTeh, "autoEsTehEnabled", "Auto Beli Saat Buff Habis", nil, false)
 
 SecEsTeh:AddButton({
     Title    = "🥤 Beli Sekarang (1x)",
@@ -1094,17 +1058,17 @@ end
 -- ══ TAB 4: AUTO FARM ═════════════════════════════════════════════
 local SecWarnet = Tabs.AutoFarm:AddSection("🏪 Otomatisasi Warnet")
 
-addLockedToggle(SecWarnet, "autoOpenEnabled", "Auto Buka Warnet", "Otomatis buka warnet kembali jika status berubah TUTUP", false, function(val)
+addToggle(SecWarnet, "autoOpenEnabled", "Auto Buka Warnet", "Otomatis buka warnet kembali jika status berubah TUTUP", false, function(val)
     lastStatus = nil
     if val and getStatus() == "TUTUP" then
         task.delay(1, function() fireAction("setOpen", {open=true}) end)
     end
 end)
 
-addLockedToggle(SecWarnet, "autoDayEnabled", "Auto Lanjut Hari", "Otomatis klik 'Continue to Day X' / 'Lanjut ke Hari X' saat laporan harian muncul", false)
-addLockedToggle(SecWarnet, "autoPlaceEnabled", "Auto Tempatkan Pelanggan", "Otomatis arahkan antrean pelanggan ke PC kosong", false)
-addLockedToggle(SecWarnet, "autoCleanEnabled", "Auto Bersih Sampah", nil, false)
-addLockedToggle(SecWarnet, "autoServeEnabled", "Auto Layani Semua Menu", "Otomatis masak & antar Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda", false)
+addToggle(SecWarnet, "autoDayEnabled", "Auto Lanjut Hari", "Otomatis klik 'Continue to Day X' / 'Lanjut ke Hari X' saat laporan harian muncul", false)
+addToggle(SecWarnet, "autoPlaceEnabled", "Auto Tempatkan Pelanggan", "Otomatis arahkan antrean pelanggan ke PC kosong", false)
+addToggle(SecWarnet, "autoCleanEnabled", "Auto Bersih Sampah", nil, false)
+addToggle(SecWarnet, "autoServeEnabled", "Auto Layani Semua Menu", "Otomatis masak & antar Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda", false)
 
 local SecDelay = Tabs.AutoFarm:AddSection("⏱️ Pengaturan Delay")
 
@@ -1132,9 +1096,9 @@ SecDelay:AddSlider("continueDelay", {
 
 local SecPlayer = Tabs.AutoFarm:AddSection("🏃 Player & Anti AFK")
 
-addLockedToggle(SecPlayer, "antiAfkEnabled", "🛡️ Anti AFK", nil, true)
+addToggle(SecPlayer, "antiAfkEnabled", "🛡️ Anti AFK", nil, true)
 
-addLockedToggle(SecPlayer, "walkSpeedEnabled", "Custom WalkSpeed", nil, false, function(val)
+addToggle(SecPlayer, "walkSpeedEnabled", "Custom WalkSpeed", nil, false, function(val)
     local hum = getHumanoid()
     if hum then hum.WalkSpeed = val and cfg.walkSpeedValue or 16 end
 end)
@@ -1159,7 +1123,7 @@ SecPlayer:AddSlider("walkSpeedValue", {
 -- ══ TAB 5: SETTINGS ══════════════════════════════════════════════
 local SecWebhook = Tabs.Settings:AddSection("🔔 Discord Webhook")
 
-addLockedToggle(SecWebhook, "webhookEnabled", "Kirim Notif Auto Buy", nil, false)
+addToggle(SecWebhook, "webhookEnabled", "Kirim Notif Auto Buy", nil, false)
 
 SecWebhook:AddInput("webhookUrlInput", {
     Title       = "Webhook URL",
@@ -1182,7 +1146,6 @@ SecWebhook:AddButton({
     end
 })
 
--- ─── SAFE INTERFACE & SAVE MANAGER (TANPA AUTOLOAD) ───────────────
 if InterfaceManager then
     pcall(function()
         InterfaceManager:SetLibrary(Fluent)
@@ -1531,16 +1494,16 @@ RunService.Heartbeat:Connect(function(dt)
     local dayBtn = cfg.autoDayEnabled and getDayReportButton() or nil
     if dayBtn and not continuePending then
         continuePending = true
-        task.delay(cfg.continueDelay, function()
+        task.spawn(function()
+            task.wait(cfg.continueDelay)
             local btn = getDayReportButton()
             if cfg.autoDayEnabled and btn then
                 clickGuiButton(btn)
                 fireAction("dayContinue", {})
-                task.delay(cfg.reopenDelay, function()
-                    if cfg.autoOpenEnabled and getStatus() == "TUTUP" then
-                        fireAction("setOpen", { open=true })
-                    end
-                end)
+                task.wait(cfg.reopenDelay)
+                if cfg.autoOpenEnabled and getStatus() == "TUTUP" then
+                    fireAction("setOpen", { open=true })
+                end
             end
             continuePending = false
         end)
@@ -1554,7 +1517,8 @@ RunService.Heartbeat:Connect(function(dt)
 
     if lastStatus == "BUKA" and status == "TUTUP" and not reopenPending then
         reopenPending = true
-        task.delay(cfg.reopenDelay, function()
+        task.spawn(function()
+            task.wait(cfg.reopenDelay)
             if cfg.autoOpenEnabled and getStatus() == "TUTUP" then
                 fireAction("setOpen", { open=true })
             end
@@ -1564,7 +1528,8 @@ RunService.Heartbeat:Connect(function(dt)
 
     if status == "TUTUP" and lastStatus == nil and not reopenPending then
         reopenPending = true
-        task.delay(1, function()
+        task.spawn(function()
+            task.wait(1)
             if cfg.autoOpenEnabled and getStatus() == "TUTUP" then
                 fireAction("setOpen", { open=true })
             end
@@ -1642,5 +1607,5 @@ if isMobile then
     end)
 end
 
-notify("Warnetopia Hub 🖤", "Fluent UI (Tombol Status 🟢 ON / 🔴 OFF) siap digunakan!", 4)
-print("[Hub] 🖤 Warnetopia Hub (Tombol Status ON/OFF) loaded!")
+notify("Warnetopia Hub 🖤", "Fluent UI (Toggle Asli + EN/ID DayReport) siap!", 4)
+print("[Hub] 🖤 Warnetopia Hub loaded!")
