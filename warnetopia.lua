@@ -2,7 +2,7 @@
     Warnetopia Hub — Full Script
     UI: LinoriaLib
     Features:
-    ✅ Auto Buy Rare Items (Komputer, Mebel, Dekorasi)
+    ✅ Auto Buy Rare Items (Komputer, Mebel, Dekorasi) + Safe Teleport Return
     ✅ Auto Restock Minimart
     ✅ Manual Buy Semua Toko
     ✅ Auto Buka Warnet
@@ -11,10 +11,10 @@
     ✅ Auto Bersih Sampah
     ✅ Auto Layani Semua Menu (Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda)
     ✅ Auto Buff Es Teh Segar
-    ✅ WalkSpeed Custom
-    ✅ Anti AFK
-    ✅ Discord Webhook
-    ✅ Save/Load Config
+    ✅ Stats Dashboard Real-Time (snap.today.income, snap.today.served, snap.rep)
+    ✅ Low Stock Alert (< 10) + Auto Restock Stok Kafe (+10 via snap.stock)
+    ✅ WalkSpeed Custom & Anti AFK
+    ✅ Save/Load Config (Autoload)
     Credit: Realx13
 --]]
 
@@ -92,7 +92,30 @@ local ESTEH_ID_TO_LABEL = {
     es_jeruk = "Es Jeruk ($7.000)",
 }
 
--- Waktu masak per menu (detik)
+local CAFE_ITEM_LABELS = {
+    noodle       = "Mie Telur",
+    stock_noodle = "Mie Telur",
+    rice         = "Nasi Goreng",
+    stock_rice   = "Nasi Goreng",
+    snack        = "Snack",
+    stock_snack  = "Snack",
+    coffee       = "Kopi Hitam",
+    stock_coffee = "Kopi Hitam",
+    tea          = "Es Teh",
+    stock_tea    = "Es Teh",
+    soda         = "Soda",
+    stock_soda   = "Soda",
+}
+
+local CAFE_KEY_TO_STOCK_ID = {
+    soda   = "stock_soda",
+    noodle = "stock_noodle",
+    coffee = "stock_coffee",
+    rice   = "stock_rice",
+    tea    = "stock_tea",
+    snack  = "stock_snack",
+}
+
 local COOK_DURATION = {
     ["Buat Mie Telur"]   = 2.5,
     ["Buat Nasi Goreng"] = 2.5,
@@ -102,14 +125,13 @@ local COOK_DURATION = {
     ["Buat Soda"]        = 0.8,
 }
 
--- Menu masak: foodKey → { cook, station, switchNeeded }
 local FOOD_MAP = {
-    ["mie telur"]  = { cook = "Buat Mie Telur",  station = "stove",          switchNeeded = false },
-    ["nasi goreng"]= { cook = "Buat Nasi Goreng", station = "stove",          switchNeeded = true  },
-    ["snack"]      = { cook = "Buat Snack",       station = "snack_rack",     switchNeeded = false },
-    ["kopi hitam"] = { cook = "Buat Kopi Hitam",  station = "coffee_machine", switchNeeded = false },
-    ["es teh"]     = { cook = "Buat Es Teh",      station = "fridge",         switchNeeded = false },
-    ["soda"]       = { cook = "Buat Soda",        station = "fridge",         switchNeeded = true  },
+    ["mie telur"]   = { cook = "Buat Mie Telur",  station = "stove",          switchNeeded = false },
+    ["nasi goreng"] = { cook = "Buat Nasi Goreng", station = "stove",          switchNeeded = true  },
+    ["snack"]       = { cook = "Buat Snack",       station = "snack_rack",     switchNeeded = false },
+    ["kopi hitam"]  = { cook = "Buat Kopi Hitam",  station = "coffee_machine", switchNeeded = false },
+    ["es teh"]      = { cook = "Buat Es Teh",      station = "fridge",         switchNeeded = false },
+    ["soda"]        = { cook = "Buat Soda",        station = "fridge",         switchNeeded = true  },
 }
 
 local DELIVER_ACTIONS = {
@@ -127,46 +149,53 @@ local MAX_SLOTS = 15
 
 -- ─── CONFIG ───────────────────────────────────────────────────────
 local cfg = {
-    autoBuyEnabled      = false,
-    autoMinimartEnabled = false,
-    autoOpenEnabled     = false,
-    autoDayEnabled      = false,
-    autoPlaceEnabled    = false,
-    autoCleanEnabled    = false,
-    autoServeEnabled    = false,
-    autoEsTehEnabled    = false,
-    esTehChoice         = "es_jeruk",
-    walkSpeedEnabled    = false,
-    walkSpeedValue      = 32,
-    antiAfkEnabled      = true,
-    webhookUrl          = "",
-    webhookEnabled      = false,
-    store_computer      = true,
-    store_furniture     = true,
-    store_decor         = true,
-    minTier             = 3,
-    rarityLangka        = true,
-    raritySangat        = true,
-    reopenDelay         = 6,
-    continueDelay       = 1.5,
+    autoBuyEnabled         = false,
+    autoMinimartEnabled    = false,
+    autoOpenEnabled        = false,
+    autoDayEnabled         = false,
+    autoPlaceEnabled       = false,
+    autoCleanEnabled       = false,
+    autoServeEnabled       = false,
+    autoEsTehEnabled       = false,
+    esTehChoice            = "es_jeruk",
+    lowStockAlertGui       = true,
+    lowStockWebhook        = true,
+    autoRestockCafeEnabled = false,
+    lowStockThreshold      = 10,
+    walkSpeedEnabled       = false,
+    walkSpeedValue         = 32,
+    antiAfkEnabled         = true,
+    webhookUrl             = "",
+    webhookEnabled         = false,
+    store_computer         = true,
+    store_furniture        = true,
+    store_decor            = true,
+    minTier                = 3,
+    rarityLangka           = true,
+    raritySangat           = true,
+    reopenDelay            = 6,
+    continueDelay          = 1.5,
 }
 
 -- ─── STATE ────────────────────────────────────────────────────────
-local lastStatus        = nil
-local reopenPending     = false
-local continuePending   = false
-local isBuying          = false
-local isCleaning        = false
-local isServing         = false
-local lastBuyCooldown   = 0
-local lastEsTehCooldown = 0
-local latestSnap        = nil
-local restockEndClock   = nil
-local discountPercent   = 0
-local assignedCooldowns = {}
-local selectedStoreId   = "computer"
-local storeOrderedUI    = {}
-local activeSlotItems   = {}
+local lastStatus            = nil
+local reopenPending         = false
+local continuePending       = false
+local isBuying              = false
+local isCleaning            = false
+local isServing             = false
+local lastBuyCooldown       = 0
+local lastEsTehCooldown     = 0
+local lastCafeRestockClock  = 0
+local latestSnap            = nil
+local restockEndClock       = nil
+local discountPercent       = 0
+local assignedCooldowns     = {}
+local selectedStoreId       = "computer"
+local storeOrderedUI        = {}
+local activeSlotItems       = {}
+local lowStockNotified      = {}
+local lastLowStockGuiMsg    = ""
 
 -- ─── HELPERS DASAR ────────────────────────────────────────────────
 local function fireAction(action, data)
@@ -181,6 +210,25 @@ end
 local function getHumanoid()
     local char = LocalPlayer.Character
     return char and char:FindFirstChildOfClass("Humanoid")
+end
+
+local function safeTeleport(targetCFrame)
+    local hrp = getHRP()
+    local hum = getHumanoid()
+    if not hrp or not targetCFrame then return end
+    if hum and hum.Sit then
+        hum.Sit = false
+        task.wait(0.05)
+    end
+    hrp.AssemblyLinearVelocity = Vector3.zero
+    hrp.CFrame = targetCFrame
+end
+
+local function returnToOrigin(origCFrame)
+    if not origCFrame then return end
+    safeTeleport(origCFrame)
+    task.wait(0.12)
+    safeTeleport(origCFrame)
 end
 
 local function isGuiTrulyVisible(obj)
@@ -213,8 +261,19 @@ end
 local function tpToPart(hrp, part, offset)
     if not hrp or not part then return end
     local pos = part:IsA("Model") and part:GetPivot().Position or part.Position
-    hrp.CFrame = CFrame.new(pos + (offset or Vector3.new(0, 2, 2)))
+    safeTeleport(CFrame.new(pos + (offset or Vector3.new(0, 2, 2))))
     task.wait(0.3)
+end
+
+local function formatMoneyFull(num)
+    if type(num) ~= "number" then return "$0" end
+    local formatted = tostring(math.floor(num + 0.5))
+    while true do
+        local k
+        formatted, k = formatted:gsub("^(-?%d+)(%d%d%d)", "%1.%2")
+        if k == 0 then break end
+    end
+    return "$" .. formatted
 end
 
 local function formatShortPrice(num)
@@ -291,14 +350,19 @@ local function buyEsTeh(itemId, isAuto)
     if isBuying or isCleaning or isServing then return false end
     local hrp = getHRP()
     if not hrp then return false end
+
     isBuying = true
     local orig = hrp.CFrame
-    hrp.CFrame = STORE_LOCATIONS.esteh
-    task.wait(0.45)
-    fireAction("eat", { item = itemId, warung = "esteh" })
-    Library:Notify((isAuto and "🥤 Auto Buff: " or "✅ ") .. (ESTEH_ID_TO_LABEL[itemId] or itemId), 2.5)
-    task.wait(0.3)
-    if getHRP() then getHRP().CFrame = orig end
+
+    pcall(function()
+        safeTeleport(STORE_LOCATIONS.esteh)
+        task.wait(0.45)
+        fireAction("eat", { item = itemId, warung = "esteh" })
+        Library:Notify((isAuto and "🥤 Auto Buff: " or "✅ ") .. (ESTEH_ID_TO_LABEL[itemId] or itemId), 2.5)
+        task.wait(0.3)
+    end)
+
+    returnToOrigin(orig)
     isBuying = false
     return true
 end
@@ -380,8 +444,7 @@ end
 local function processAutoServeAll()
     if isServing or isBuying or isCleaning then return end
 
-    -- 1. Cari pelanggan — SIMPAN referensi dari pencarian pertama
-    local deliverPrompt, deliverPart, deliverAction, deliverObjectTxt = findDeliverPrompt(nil)
+    local deliverPrompt, deliverPart, deliverAction, _ = findDeliverPrompt(nil)
     if not deliverPrompt or not deliverPart then return end
 
     local foodKey  = (deliverAction:match("^Antar%s+(.+)$") or ""):lower()
@@ -393,67 +456,59 @@ local function processAutoServeAll()
     local originalCFrame = hrp.CFrame
     local needSwitchBack = false
 
-    -- 2. Masak jika ada info alat masak
-    if foodInfo then
-        -- 2a. Ganti mode dulu kalau perlu (Nasi Goreng / Soda)
-        if foodInfo.switchNeeded then
-            local sw, swPart = findSwitchPrompt(foodInfo.station)
-            if sw and swPart then
-                tpToPart(hrp, swPart)
-                triggerPromptSafe(sw)
-                task.wait((sw.HoldDuration or 0) + 0.4)
-                needSwitchBack = true
+    pcall(function()
+        if foodInfo then
+            if foodInfo.switchNeeded then
+                local sw, swPart = findSwitchPrompt(foodInfo.station)
+                if sw and swPart then
+                    tpToPart(hrp, swPart)
+                    triggerPromptSafe(sw)
+                    task.wait((sw.HoldDuration or 0) + 0.4)
+                    needSwitchBack = true
+                end
             end
-        end
 
-        -- 2b. Masak dengan durasi yang sesuai menu
-        local cp, cPart = findCookPrompt(foodInfo.station, foodInfo.cook)
-        if cp and cPart then
-            local curHrp = getHRP()
-            if curHrp then
-                tpToPart(curHrp, cPart)
-                triggerPromptSafe(cp)
-                -- FIX: pakai COOK_DURATION, bukan HoldDuration saja
-                local cookWait = COOK_DURATION[foodInfo.cook] or ((cp.HoldDuration or 0) + 0.5)
-                task.wait(cookWait)
-            end
-        end
-    end
-
-    -- 3. Antar ke pelanggan — PAKAI referensi dari pencarian pertama
-    if cfg.autoServeEnabled and not isBuying then
-        local promptStillValid = deliverPrompt and deliverPrompt.Parent and deliverPrompt.Enabled
-        if promptStillValid then
-            local curHrp = getHRP()
-            if curHrp then
-                tpToPart(curHrp, deliverPart)
-                triggerPromptSafe(deliverPrompt)
-                task.wait((deliverPrompt.HoldDuration or 0) + 0.4)
-            end
-        else
-            -- Fallback: cari ulang pelanggan menu yang sama
-            local dp2, pp2, _, _ = findDeliverPrompt(foodKey ~= "" and foodKey or nil)
-            if dp2 and pp2 then
+            local cp, cPart = findCookPrompt(foodInfo.station, foodInfo.cook)
+            if cp and cPart then
                 local curHrp = getHRP()
                 if curHrp then
-                    tpToPart(curHrp, pp2)
-                    triggerPromptSafe(dp2)
-                    task.wait((dp2.HoldDuration or 0) + 0.4)
+                    tpToPart(curHrp, cPart)
+                    triggerPromptSafe(cp)
+                    local cookWait = COOK_DURATION[foodInfo.cook] or ((cp.HoldDuration or 0) + 0.5)
+                    task.wait(cookWait)
                 end
             end
         end
+
+        if cfg.autoServeEnabled and not isBuying then
+            local promptStillValid = deliverPrompt and deliverPrompt.Parent and deliverPrompt.Enabled
+            if promptStillValid then
+                local curHrp = getHRP()
+                if curHrp then
+                    tpToPart(curHrp, deliverPart)
+                    triggerPromptSafe(deliverPrompt)
+                    task.wait((deliverPrompt.HoldDuration or 0) + 0.4)
+                end
+            else
+                local dp2, pp2, _, _ = findDeliverPrompt(foodKey ~= "" and foodKey or nil)
+                if dp2 and pp2 then
+                    local curHrp = getHRP()
+                    if curHrp then
+                        tpToPart(curHrp, pp2)
+                        triggerPromptSafe(dp2)
+                        task.wait((dp2.HoldDuration or 0) + 0.4)
+                    end
+                end
+            end
+        end
+    end)
+
+    if not isBuying and not isCleaning then
+        returnToOrigin(originalCFrame)
     end
 
-    -- 4. Balik ke posisi awal
-    if getHRP() and not isBuying and not isCleaning then
-        getHRP().CFrame = originalCFrame
-    end
-
-    -- 5. FIX: Set isServing = false SEBELUM switch balik
-    --    Supaya loop berikutnya tidak terblokir
     isServing = false
 
-    -- 6. Switch balik kompor/kulkas ke default SETELAH isServing = false
     if needSwitchBack and foodInfo then
         task.spawn(function()
             task.wait(0.3)
@@ -480,21 +535,28 @@ local function processAutoClean()
     if not hrp then return end
     local trashList = findTrashPrompts()
     if #trashList == 0 then return end
+
     isCleaning = true
     local orig = hrp.CFrame
-    for _, item in ipairs(trashList) do
-        if not cfg.autoCleanEnabled or isBuying or isServing then break end
-        local prompt, part = item.prompt, item.part
-        if prompt and prompt.Parent and prompt.Enabled and part and part.Parent then
-            local curHrp = getHRP()
-            if curHrp then
-                tpToPart(curHrp, part)
-                triggerPromptSafe(prompt)
-                task.wait((prompt.HoldDuration or 0) + 0.35)
+
+    pcall(function()
+        for _, item in ipairs(trashList) do
+            if not cfg.autoCleanEnabled or isBuying or isServing then break end
+            local prompt, part = item.prompt, item.part
+            if prompt and prompt.Parent and prompt.Enabled and part and part.Parent then
+                local curHrp = getHRP()
+                if curHrp then
+                    tpToPart(curHrp, part)
+                    triggerPromptSafe(prompt)
+                    task.wait((prompt.HoldDuration or 0) + 0.35)
+                end
             end
         end
+    end)
+
+    if not isBuying and not isServing then
+        returnToOrigin(orig)
     end
-    if getHRP() and not isBuying and not isServing then getHRP().CFrame = orig end
     isCleaning = false
 end
 
@@ -687,16 +749,21 @@ local function buySingleItemManual(storeId, itemId, priceStr)
     local hrp = getHRP()
     local targetCFrame = STORE_LOCATIONS[storeId]
     if not hrp or not targetCFrame then return end
+
     isBuying = true
     local orig = hrp.CFrame
     local itemInfo = BY_ID[itemId]
     local itemName = (itemInfo and itemInfo.name) or itemId
-    hrp.CFrame = targetCFrame
-    task.wait(0.4)
-    fireAction("storeBuy", { store=storeId, item=itemId })
-    Library:Notify("✅ Membeli: "..itemName..(priceStr~="" and " ("..priceStr..")" or ""), 2.5)
-    task.wait(0.25)
-    if getHRP() then getHRP().CFrame = orig end
+
+    pcall(function()
+        safeTeleport(targetCFrame)
+        task.wait(0.45)
+        fireAction("storeBuy", { store=storeId, item=itemId })
+        Library:Notify("✅ Membeli: "..itemName..(priceStr~="" and " ("..priceStr..")" or ""), 2.5)
+        task.wait(0.35)
+    end)
+
+    returnToOrigin(orig)
     isBuying = false
 end
 
@@ -705,7 +772,7 @@ local Window = Library:CreateWindow({
     Title    = 'Warnetopia Hub 🖤',
     Center   = true,
     AutoShow = true,
-    Size     = UDim2.fromOffset(780, 650),
+    Size     = UDim2.fromOffset(780, 710),
 })
 
 -- ══ TAB 1: AUTO BUY ══════════════════════════════════════════════
@@ -764,9 +831,8 @@ TimerBox:AddDivider()
 TimerBox:AddButton({
     Text='🚀 TP ke Toko Terpilih',
     Func=function()
-        local hrp = getHRP()
         local target = STORE_LOCATIONS[selectedStoreId]
-        if hrp and target then hrp.CFrame = target end
+        if target then safeTeleport(target) end
     end,
     Tooltip='Teleport ke toko yang dipilih di kanan',
 })
@@ -785,6 +851,33 @@ EsTehBox:AddToggle('autoEsTehEnabled', {
 EsTehBox:AddButton({
     Text='🥤 Beli Sekarang (1x)',
     Func=function() task.spawn(buyEsTeh, cfg.esTehChoice, false) end,
+})
+
+local LowStockBox = CafeTab:AddLeftGroupbox('⚠️ Low Stock Alert (Menu Kafe)')
+local LowStockStatusLabel = LowStockBox:AddLabel('✅ Semua stok menu kafe aman')
+LowStockBox:AddSlider('lowStockThreshold', {
+    Text='Batas Minimum Stok', Min=1, Max=50, Default=10, Rounding=0,
+    Tooltip='Kirim peringatan & beli +10 di WarnetOS jika stok menu kafe di bawah angka ini',
+    Callback=function(val)
+        cfg.lowStockThreshold = val
+        table.clear(lowStockNotified)
+    end,
+})
+LowStockBox:AddToggle('lowStockAlertGui', {
+    Text='Warning di GUI & Notif', Default=true,
+    Callback=function(val) cfg.lowStockAlertGui = val end,
+})
+LowStockBox:AddToggle('lowStockWebhook', {
+    Text='Kirim Alert ke Discord', Default=true,
+    Callback=function(val) cfg.lowStockWebhook = val end,
+})
+LowStockBox:AddToggle('autoRestockCafeEnabled', {
+    Text='Auto Beli Stok Kafe (+10)', Default=false,
+    Tooltip='Otomatis beli +10 stok via WarnetOS di background tanpa TP jika stok di bawah batas minimum',
+    Callback=function(val)
+        cfg.autoRestockCafeEnabled = val
+        lastCafeRestockClock = 0
+    end,
 })
 
 local ManualShopBox = CafeTab:AddRightGroupbox('🛍️ Beli Manual (Semua Toko)')
@@ -888,6 +981,13 @@ PlayerBox:AddSlider('walkSpeedValue', {
     end,
 })
 
+-- Stats Dashboard Box (Real-Time dari snap.today & snap.rep)
+local StatsBox = OpenTab:AddRightGroupbox('📊 Stats Dashboard (Real-Time)')
+local StatDayLabel      = StatsBox:AddLabel('📅 Hari: -')
+local StatIncomeLabel   = StatsBox:AddLabel('💰 Income Hari Ini: $0')
+local StatServedLabel   = StatsBox:AddLabel('👥 Pelanggan Served: 0')
+local StatRatingLabel   = StatsBox:AddLabel('⭐ Rating Warnet: -')
+
 -- ══ TAB 4: SETTINGS ══════════════════════════════════════════════
 local SettingsTab = Window:AddTab('Settings')
 local SettingsBox = SettingsTab:AddLeftGroupbox('🎨 Theme')
@@ -921,7 +1021,133 @@ WebhookBox:AddButton({
     end,
 })
 
-SaveManager:LoadAutoloadConfig()
+-- ─── STATS DASHBOARD, LOW STOCK & AUTO RESTOCK STOK KAFE ──────────
+local function getCafeItemDisplayName(key)
+    local kl = tostring(key):lower()
+    if CAFE_ITEM_LABELS[kl] then return CAFE_ITEM_LABELS[kl] end
+    local byId = BY_ID[key] or BY_ID[kl]
+    if byId and byId.name then return byId.name end
+    return tostring(key):gsub("_", " "):gsub("^%l", string.upper)
+end
+
+local function autoRestockCafeMenuBackground(lowKeyMap)
+    if not cfg.autoRestockCafeEnabled then return end
+    if os.clock() - lastCafeRestockClock < 4 then return end
+
+    local buyIds = {}
+    local seenStockIds = {}
+
+    for cafeKey, _ in pairs(lowKeyMap) do
+        local kl = tostring(cafeKey):lower()
+        local stockId = CAFE_KEY_TO_STOCK_ID[kl]
+        if stockId and not seenStockIds[stockId] then
+            seenStockIds[stockId] = true
+            table.insert(buyIds, { stockId = stockId, label = getCafeItemDisplayName(stockId) })
+        end
+    end
+
+    if #buyIds == 0 then return end
+    lastCafeRestockClock = os.clock()
+
+    local boughtLog = {}
+    for _, entry in ipairs(buyIds) do
+        if not cfg.autoRestockCafeEnabled then break end
+        fireAction("buy", { id = entry.stockId })
+        table.insert(boughtLog, string.format("• **%s** (+10 stok)", entry.label))
+        task.wait(0.25)
+    end
+
+    if #boughtLog > 0 then
+        Library:Notify("☕ Auto Restock Kafe (+10): " .. #boughtLog .. " menu dibeli!", 3)
+        if cfg.lowStockWebhook then
+            task.spawn(sendWebhook(
+                "☕ Auto Restock Stok Kafe (+10)",
+                "Berhasil mengisi ulang stok menu kafe via **WarnetOS**:\n" .. table.concat(boughtLog, "\n"),
+                3066993
+            ))
+        end
+    end
+end
+
+-- Membaca stok kafe langsung dari snap.stock (soda, rice, noodle, tea, snack, coffee)
+local function evaluateCafeLowStock(snap)
+    if not snap or type(snap.stock) ~= "table" then return end
+
+    local lowItems = {}
+    local lowKeyMap = {}
+    local discordLines = {}
+    local threshold = cfg.lowStockThreshold or 10
+
+    for itemKey, qty in pairs(snap.stock) do
+        if type(qty) == "number" then
+            local label = getCafeItemDisplayName(itemKey)
+            if qty < threshold then
+                lowKeyMap[itemKey] = qty
+                table.insert(lowItems, string.format("%s (%d)", label, qty))
+                if not lowStockNotified[itemKey] then
+                    lowStockNotified[itemKey] = true
+                    table.insert(discordLines, string.format("• **%s** — Sisa **%d** stok!", label, qty))
+                end
+            else
+                lowStockNotified[itemKey] = nil
+            end
+        end
+    end
+
+    if #lowItems > 0 then
+        local summary = "⚠️ Stok Tipis: " .. table.concat(lowItems, ", ")
+        LowStockStatusLabel:SetText(summary)
+        if cfg.lowStockAlertGui and lastLowStockGuiMsg ~= summary then
+            lastLowStockGuiMsg = summary
+            Library:Notify(summary, 4)
+        end
+        if cfg.lowStockWebhook and #discordLines > 0 then
+            task.spawn(sendWebhook(
+                "⚠️ Low Stock Alert — Menu Kafe!",
+                "Stok menu kafe berikut sudah di bawah **" .. threshold .. "**:\n" .. table.concat(discordLines, "\n"),
+                15158332
+            ))
+        end
+        if cfg.autoRestockCafeEnabled then
+            task.spawn(autoRestockCafeMenuBackground, lowKeyMap)
+        end
+    else
+        lastLowStockGuiMsg = ""
+        LowStockStatusLabel:SetText("✅ Semua stok menu kafe aman (>= " .. threshold .. ")")
+    end
+end
+
+-- Membaca stats real-time langsung dari snap.day, snap.today.income, snap.today.served, dan snap.rep
+local function updateStatsDashboard(snap)
+    if type(snap) ~= "table" then return end
+
+    if snap.day then
+        StatDayLabel:SetText("📅 Hari: Hari " .. tostring(snap.day))
+    end
+
+    if type(snap.today) == "table" then
+        if type(snap.today.income) == "table" then
+            local totalIncome = 0
+            for _, amount in pairs(snap.today.income) do
+                if type(amount) == "number" then
+                    totalIncome = totalIncome + amount
+                end
+            end
+            StatIncomeLabel:SetText("💰 Income Hari Ini: " .. formatMoneyFull(totalIncome))
+        elseif type(snap.today.income) == "number" then
+            StatIncomeLabel:SetText("💰 Income Hari Ini: " .. formatMoneyFull(snap.today.income))
+        end
+
+        if snap.today.served ~= nil then
+            local custStr = snap.today.customers and (" / " .. tostring(snap.today.customers) .. " datang") or " orang"
+            StatServedLabel:SetText("👥 Pelanggan Served: " .. tostring(snap.today.served) .. custStr)
+        end
+    end
+
+    if type(snap.rep) == "number" then
+        StatRatingLabel:SetText(string.format("⭐ Rating Warnet: %.2f / 5.0", snap.rep))
+    end
+end
 
 -- ─── SYNC DARI GAME UI ────────────────────────────────────────────
 local function resolveItemByDisplayName(rawName)
@@ -1067,13 +1293,16 @@ local function processSnap(snap)
     if not snap then return end
     latestSnap = snap
 
+    -- Update Stats Dashboard, Low Stock Alert & Auto Restock Stok Kafe
+    pcall(updateStatsDashboard, snap)
+    pcall(evaluateCafeLowStock, snap)
+
     if cfg.autoPlaceEnabled then
         task.spawn(function() pcall(processAutoPlace) end)
     end
 
     if not snap.shops then return end
 
-    -- Update restock timer dari snap
     for k, v in pairs(snap.shops) do
         if type(v) == "number" and v > 0 then
             if v > 1000000 then
@@ -1126,35 +1355,37 @@ local function processSnap(snap)
     local originalCFrame = hrp.CFrame
     local boughtLog = {}
 
-    for storeId, items in pairs(purchaseQueue) do
-        local targetCFrame = STORE_LOCATIONS[storeId]
-        if targetCFrame then
-            hrp.CFrame = targetCFrame
-            task.wait(0.45)
-            for _, itemData in ipairs(items) do
-                local stillEnabled = (storeId == "minimart" and cfg.autoMinimartEnabled)
-                                  or (storeId ~= "minimart" and cfg.autoBuyEnabled)
-                if not stillEnabled then break end
-                local boughtCount = 0
-                for i = 1, itemData.qty do
-                    fireAction("storeBuy", { store=storeId, item=itemData.id })
-                    boughtCount = boughtCount + 1
-                    task.wait(0.25)
-                end
-                if boughtCount > 0 then
-                    local itemInfo = BY_ID[itemData.id]
-                    local itemName = (itemInfo and itemInfo.name) or itemData.id
-                    local rarityTag = (itemInfo and itemInfo.rarity == "sangat_langka" and " [★★]")
-                                   or (itemInfo and itemInfo.rarity == "langka" and " [★]") or ""
-                    table.insert(boughtLog, string.format("• **%s**%s (x%d) — *%s*",
-                        itemName, rarityTag, boughtCount, STORE_ID_TO_NAME[storeId] or storeId))
+    pcall(function()
+        for storeId, items in pairs(purchaseQueue) do
+            local targetCFrame = STORE_LOCATIONS[storeId]
+            if targetCFrame then
+                safeTeleport(targetCFrame)
+                task.wait(0.5)
+                for _, itemData in ipairs(items) do
+                    local stillEnabled = (storeId == "minimart" and cfg.autoMinimartEnabled)
+                                      or (storeId ~= "minimart" and cfg.autoBuyEnabled)
+                    if not stillEnabled then break end
+                    local boughtCount = 0
+                    for _ = 1, itemData.qty do
+                        fireAction("storeBuy", { store=storeId, item=itemData.id })
+                        boughtCount = boughtCount + 1
+                        task.wait(0.25)
+                    end
+                    if boughtCount > 0 then
+                        local itemInfo = BY_ID[itemData.id]
+                        local itemName = (itemInfo and itemInfo.name) or itemData.id
+                        local rarityTag = (itemInfo and itemInfo.rarity == "sangat_langka" and " [★★]")
+                                       or (itemInfo and itemInfo.rarity == "langka" and " [★]") or ""
+                        table.insert(boughtLog, string.format("• **%s**%s (x%d) — *%s*",
+                            itemName, rarityTag, boughtCount, STORE_ID_TO_NAME[storeId] or storeId))
+                    end
                 end
             end
         end
-    end
+    end)
 
-    task.wait(0.2)
-    if getHRP() then getHRP().CFrame = originalCFrame end
+    task.wait(0.3)
+    returnToOrigin(originalCFrame)
     isBuying = false
 
     if cfg.webhookEnabled and #boughtLog > 0 then
@@ -1175,7 +1406,6 @@ local serveTimer = 0
 local esTehTimer = 0
 
 RunService.Heartbeat:Connect(function(dt)
-    -- WalkSpeed
     if cfg.walkSpeedEnabled then
         local hum = getHumanoid()
         if hum and hum.WalkSpeed ~= cfg.walkSpeedValue then
@@ -1183,7 +1413,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- Auto Place
     if cfg.autoPlaceEnabled then
         placeTimer = placeTimer + dt
         if placeTimer >= 0.6 then
@@ -1192,7 +1421,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- Auto Serve All Menu
     if cfg.autoServeEnabled then
         serveTimer = serveTimer + dt
         if serveTimer >= 1.2 then
@@ -1201,7 +1429,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- Auto Clean
     if cfg.autoCleanEnabled then
         cleanTimer = cleanTimer + dt
         if cleanTimer >= 1.5 then
@@ -1210,7 +1437,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- Es Teh Buff
     esTehTimer = esTehTimer + dt
     if esTehTimer >= 1.0 then
         esTehTimer = 0
@@ -1227,7 +1453,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- UI Sync & Restock Timer
     uiTimer = uiTimer + dt
     if uiTimer >= 0.5 then
         uiTimer = 0
@@ -1243,7 +1468,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- Auto Open / Day
     if not cfg.autoOpenEnabled and not cfg.autoDayEnabled then
         lastStatus = nil
         return
@@ -1301,7 +1525,6 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 SaveManager:LoadAutoloadConfig()
-
 Library:SetWatermark('Warnetopia Hub 🖤')
 Library.Toggled = true
 
