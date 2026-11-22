@@ -1,27 +1,59 @@
 --[[
-    Warnetopia Hub — Full Script (Fluent UI — PC & Mobile Anti-Scroll Ready)
-    UI: Fluent (dawid-scripts/Fluent)
+    Warnetopia Hub — Full Script (Fluent UI — Multi-Mirror Anti-Nil & Anti-Scroll Ready)
+    UI: Fluent (Multi-Mirror Loader + Safe Addons)
     Features:
+    ✅ Multi-Mirror Loader (Anti Line-1 nil value di HP / Cloud Phone)
+    ✅ Anti-Scroll & Anti Double-Tap Locked Toggles
     ✅ Auto Buy Rare Items (Komputer, Mebel, Dekorasi)
     ✅ Auto Restock Minimart
-    ✅ Manual Buy Semua Toko
+    ✅ Manual Buy Semua Toko (15 Slot + Timer Restock)
     ✅ Auto Buka Warnet
     ✅ Auto Lanjut Hari
     ✅ Auto Tempatkan Pelanggan
     ✅ Auto Bersih Sampah
     ✅ Auto Layani Semua Menu (Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda)
-    ✅ Auto Buff Es Teh Segar
+    ✅ Auto Buff Es Teh Segar / Es Jeruk
     ✅ Dashboard Real-Time + Low Stock Alert
     ✅ WalkSpeed Custom & Anti AFK
-    ✅ Discord Webhook & Save/Load Config
-    ✅ Anti-Scroll & Anti Double-Tap Locked Toggles (Mobile & Cloud Phone Fix)
+    ✅ Discord Webhook & Save/Load Config (Safe Wrapped)
     Credit: Realx13
 --]]
 
--- ─── LOAD FLUENT UI ───────────────────────────────────────────────
-local Fluent           = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager      = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+-- ─── MULTI-MIRROR SAFE LOADER (ANTI LINE 1 NIL) ───────────────────
+local function safeLoad(urls, name)
+    for _, url in ipairs(urls) do
+        local okHttp, body = pcall(function() return game:HttpGet(url) end)
+        if okHttp and type(body) == "string" and #body > 100 and not body:find("404: Not Found") then
+            local fn, err = loadstring(body)
+            if type(fn) == "function" then
+                local okRun, res = pcall(fn)
+                if okRun and res then return res end
+            else
+                warn("[Hub] Gagal compile " .. name .. ": " .. tostring(err))
+            end
+        end
+    end
+    return nil
+end
+
+local Fluent = safeLoad({
+    "https://raw.githubusercontent.com/dawid-scripts/Fluent/master/main.lua",
+    "https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua",
+    "https://raw.githubusercontent.com/Footagesus/Fluent/main/main.lua"
+}, "Fluent")
+
+if not Fluent then
+    warn("[Hub] Semua mirror Fluent gagal dimuat! Cek koneksi atau izin HttpGet executor.")
+    return
+end
+
+local SaveManager = safeLoad({
+    "https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"
+}, "SaveManager")
+
+local InterfaceManager = safeLoad({
+    "https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"
+}, "InterfaceManager")
 
 -- ─── SERVICES ─────────────────────────────────────────────────────
 local Players             = game:GetService("Players")
@@ -40,13 +72,15 @@ local Action   = Remotes:WaitForChild("Action", 10)
 local Snapshot = Remotes:WaitForChild("Snapshot", 10)
 
 -- ─── CATALOG ──────────────────────────────────────────────────────
-local Catalog = require(ReplicatedStorage.Shared.Data.Catalog)
 local BY_ID   = {}
 local BY_NAME = {}
-for _, item in ipairs(Catalog.ITEMS) do
-    BY_ID[item.id] = item
-    if item.name then BY_NAME[item.name:lower()] = item end
-end
+pcall(function()
+    local Catalog = require(ReplicatedStorage.Shared.Data.Catalog)
+    for _, item in ipairs(Catalog.ITEMS) do
+        BY_ID[item.id] = item
+        if item.name then BY_NAME[item.name:lower()] = item end
+    end
+end)
 
 -- ─── KONSTANTA ────────────────────────────────────────────────────
 local STORE_LOCATIONS = {
@@ -836,10 +870,9 @@ local function addLockedToggle(section, id, title, desc, defaultVal, extraCallba
             end
 
             local now = os.clock()
-            -- Tolak perubahan toggle jika sedang scroll halaman atau double-tap < 0.35 detik
             if isTouchScrolling or (toggleLastTap[id] and (now - toggleLastTap[id]) < 0.35) then
                 task.defer(function()
-                    if Options[id] and Options[id].Value ~= cfg[id] then
+                    if Options and Options[id] and Options[id].Value ~= cfg[id] then
                         pcall(function() Options[id]:SetValue(cfg[id]) end)
                     end
                 end)
@@ -1152,20 +1185,27 @@ SecWebhook:AddButton({
     end
 })
 
--- ─── INTERFACE & SAVE MANAGER (FLUENT) ────────────────────────────
-InterfaceManager:SetLibrary(Fluent)
-InterfaceManager:SetFolder("WarnetopiaHub_Fluent")
-InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+-- ─── SAFE INTERFACE & SAVE MANAGER ────────────────────────────────
+if InterfaceManager then
+    pcall(function()
+        InterfaceManager:SetLibrary(Fluent)
+        InterfaceManager:SetFolder("WarnetopiaHub_Fluent")
+        InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+    end)
+end
 
-SaveManager:SetLibrary(Fluent)
-SaveManager:SetFolder("WarnetopiaHub_Fluent/configs")
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({ "selectedManualStore" })
-SaveManager:BuildConfigSection(Tabs.Settings)
-
-isConfigLoading = true
-pcall(function() SaveManager:LoadAutoloadConfig() end)
-isConfigLoading = false
+if SaveManager then
+    pcall(function()
+        SaveManager:SetLibrary(Fluent)
+        SaveManager:SetFolder("WarnetopiaHub_Fluent/configs")
+        SaveManager:IgnoreThemeSettings()
+        SaveManager:SetIgnoreIndexes({ "selectedManualStore" })
+        SaveManager:BuildConfigSection(Tabs.Settings)
+        isConfigLoading = true
+        SaveManager:LoadAutoloadConfig()
+        isConfigLoading = false
+    end)
+end
 
 Window:SelectTab(1)
 
@@ -1606,5 +1646,5 @@ if isMobile then
     end)
 end
 
-notify("Warnetopia Hub 🖤", "Fluent UI (Anti-Scroll Ready) berhasil dimuat!", 4)
-print("[Hub] 🖤 Warnetopia Hub (Fluent UI Anti-Scroll) loaded!")
+notify("Warnetopia Hub 🖤", "Fluent UI (Multi-Mirror + Anti-Scroll) berhasil dimuat!", 4)
+print("[Hub] 🖤 Warnetopia Hub (Multi-Mirror + Anti-Scroll) loaded!")
