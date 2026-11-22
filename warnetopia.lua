@@ -241,13 +241,6 @@ local function getAllGuiRoots()
     return roots
 end
 
-local function clickGuiButton(btn)
-    if not btn then return end
-    if firesignal then
-        pcall(function() firesignal(btn.MouseButton1Down) end)
-        pcall(function() firesignal(btn.MouseButton1Click) end)
-        pcall(function() firesignal(btn.Activated) end)
-    end
     if btn:IsA("GuiObject") and btn.Visible then
         local pos = btn.AbsolutePosition
         local sz  = btn.AbsoluteSize
