@@ -6,15 +6,15 @@
     ✅ Auto Restock Minimart
     ✅ Manual Buy Semua Toko
     ✅ Auto Buka Warnet
-    ✅ Auto Lanjut Hari
+    ✅ Auto Lanjut Hari (Multi-root UI + VirtualInputManager Click)
     ✅ Auto Tempatkan Pelanggan
     ✅ Auto Bersih Sampah
     ✅ Auto Layani Semua Menu (Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda)
     ✅ Auto Buff Es Teh Segar
-    ✅ WalkSpeed Custom
-    ✅ Anti AFK
-    ✅ Discord Webhook
-    ✅ Save/Load Config
+    ✅ Dashboard Real-Time + Low Stock Alert
+    ✅ WalkSpeed Custom & Anti AFK
+    ✅ Discord Webhook & Save/Load Config
+    ✅ Mobile Toggle Button
     Credit: Realx13
 --]]
 
@@ -25,12 +25,13 @@ local ThemeManager = loadstring(game:HttpGet(repo .. 'addons/ThemeManager.lua'))
 local SaveManager  = loadstring(game:HttpGet(repo .. 'addons/SaveManager.lua'))()
 
 -- ─── SERVICES ─────────────────────────────────────────────────────
-local Players           = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService        = game:GetService("RunService")
-local VirtualUser       = game:GetService("VirtualUser")
-local HttpService       = game:GetService("HttpService")
-local LocalPlayer       = Players.LocalPlayer
+local Players             = game:GetService("Players")
+local ReplicatedStorage   = game:GetService("ReplicatedStorage")
+local RunService          = game:GetService("RunService")
+local VirtualUser         = game:GetService("VirtualUser")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local HttpService         = game:GetService("HttpService")
+local LocalPlayer         = Players.LocalPlayer
 
 local httpRequest = (syn and syn.request) or (http and http.request) or http_request or request
 
@@ -104,12 +105,12 @@ local COOK_DURATION = {
 
 -- Menu masak: foodKey → { cook, station, switchNeeded }
 local FOOD_MAP = {
-    ["mie telur"]  = { cook = "Buat Mie Telur",  station = "stove",          switchNeeded = false },
-    ["nasi goreng"]= { cook = "Buat Nasi Goreng", station = "stove",          switchNeeded = true  },
-    ["snack"]      = { cook = "Buat Snack",       station = "snack_rack",     switchNeeded = false },
-    ["kopi hitam"] = { cook = "Buat Kopi Hitam",  station = "coffee_machine", switchNeeded = false },
-    ["es teh"]     = { cook = "Buat Es Teh",      station = "fridge",         switchNeeded = false },
-    ["soda"]       = { cook = "Buat Soda",        station = "fridge",         switchNeeded = true  },
+    ["mie telur"]   = { cook = "Buat Mie Telur",  station = "stove",          switchNeeded = false },
+    ["nasi goreng"] = { cook = "Buat Nasi Goreng", station = "stove",          switchNeeded = true  },
+    ["snack"]       = { cook = "Buat Snack",       station = "snack_rack",     switchNeeded = false },
+    ["kopi hitam"]  = { cook = "Buat Kopi Hitam",  station = "coffee_machine", switchNeeded = false },
+    ["es teh"]      = { cook = "Buat Es Teh",      station = "fridge",         switchNeeded = false },
+    ["soda"]        = { cook = "Buat Soda",        station = "fridge",         switchNeeded = true  },
 }
 
 local DELIVER_ACTIONS = {
@@ -141,7 +142,7 @@ local cfg = {
     antiAfkEnabled      = true,
     webhookUrl          = "",
     stockAlertEnabled   = true,
-    stockThreshold      = 10,   -- warning kalau stok < angka ini
+    stockThreshold      = 10,
     webhookEnabled      = false,
     store_computer      = true,
     store_furniture     = true,
@@ -163,7 +164,7 @@ local isServing         = false
 local lastBuyCooldown   = 0
 local lastEsTehCooldown = 0
 local latestSnap        = nil
-local lastStockAlert    = {}   -- track item yang sudah di-alert biar ga spam
+local lastStockAlert    = {}
 local restockEndClock   = nil
 local discountPercent   = 0
 local assignedCooldowns = {}
@@ -186,6 +187,25 @@ local function getHumanoid()
     return char and char:FindFirstChildOfClass("Humanoid")
 end
 
+local function safeTeleport(targetCFrame)
+    local hrp = getHRP()
+    local hum = getHumanoid()
+    if not hrp or not targetCFrame then return end
+    if hum and hum.Sit then
+        hum.Sit = false
+        task.wait(0.05)
+    end
+    hrp.AssemblyLinearVelocity = Vector3.zero
+    hrp.CFrame = targetCFrame
+end
+
+local function returnToOrigin(origCFrame)
+    if not origCFrame then return end
+    safeTeleport(origCFrame)
+    task.wait(0.12)
+    safeTeleport(origCFrame)
+end
+
 local function isGuiTrulyVisible(obj)
     if not obj or not obj:IsA("GuiObject") or not obj.Visible then return false end
     local curr = obj.Parent
@@ -196,10 +216,41 @@ local function isGuiTrulyVisible(obj)
     return true
 end
 
+local function getAllGuiRoots()
+    local roots = {}
+    local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+    if pg then table.insert(roots, pg) end
+    pcall(function()
+        local cg = game:GetService("CoreGui")
+        if cg then table.insert(roots, cg) end
+    end)
+    if gethui then
+        pcall(function()
+            local hui = gethui()
+            if hui then table.insert(roots, hui) end
+        end)
+    end
+    return roots
+end
+
 local function clickGuiButton(btn)
-    if not btn or not firesignal then return end
-    pcall(function() firesignal(btn.MouseButton1Click) end)
-    pcall(function() firesignal(btn.Activated) end)
+    if not btn then return end
+    if firesignal then
+        pcall(function() firesignal(btn.MouseButton1Down) end)
+        pcall(function() firesignal(btn.MouseButton1Click) end)
+        pcall(function() firesignal(btn.Activated) end)
+    end
+    if btn:IsA("GuiObject") and btn.Visible then
+        local pos = btn.AbsolutePosition
+        local sz  = btn.AbsoluteSize
+        local cx  = pos.X + (sz.X * 0.5)
+        local cy  = pos.Y + (sz.Y * 0.5)
+        pcall(function()
+            VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, true, game, 1)
+            task.wait(0.05)
+            VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, false, game, 1)
+        end)
+    end
 end
 
 local function triggerPromptSafe(prompt)
@@ -216,7 +267,7 @@ end
 local function tpToPart(hrp, part, offset)
     if not hrp or not part then return end
     local pos = part:IsA("Model") and part:GetPivot().Position or part.Position
-    hrp.CFrame = CFrame.new(pos + (offset or Vector3.new(0, 2, 2)))
+    safeTeleport(CFrame.new(pos + (offset or Vector3.new(0, 2, 2))))
     task.wait(0.3)
 end
 
@@ -262,12 +313,17 @@ end
 
 -- ─── HELPER: DayReport button ─────────────────────────────────────
 local function getDayReportButton()
-    local gui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
-    if not gui then return nil end
-    for _, obj in ipairs(gui:GetDescendants()) do
-        if (obj:IsA("TextButton") or obj:IsA("TextLabel")) and (obj.Text or ""):find("Lanjut ke Hari") then
-            local btn = obj:IsA("GuiButton") and obj or obj:FindFirstAncestorWhichIsA("GuiButton")
-            if btn and isGuiTrulyVisible(btn) then return btn end
+    for _, root in ipairs(getAllGuiRoots()) do
+        for _, obj in ipairs(root:GetDescendants()) do
+            if (obj:IsA("TextButton") or obj:IsA("TextLabel")) then
+                local txt = tostring(obj.Text or "")
+                if txt:find("Lanjut ke Hari", 1, true) or txt:match("^Lanjut%s+ke%s+Hari") then
+                    local btn = obj:IsA("GuiButton") and obj or obj:FindFirstAncestorWhichIsA("GuiButton")
+                    if btn and isGuiTrulyVisible(btn) then
+                        return btn
+                    end
+                end
+            end
         end
     end
     return nil
@@ -296,12 +352,12 @@ local function buyEsTeh(itemId, isAuto)
     if not hrp then return false end
     isBuying = true
     local orig = hrp.CFrame
-    hrp.CFrame = STORE_LOCATIONS.esteh
+    safeTeleport(STORE_LOCATIONS.esteh)
     task.wait(0.45)
     fireAction("eat", { item = itemId, warung = "esteh" })
     Library:Notify((isAuto and "🥤 Auto Buff: " or "✅ ") .. (ESTEH_ID_TO_LABEL[itemId] or itemId), 2.5)
     task.wait(0.3)
-    if getHRP() then getHRP().CFrame = orig end
+    returnToOrigin(orig)
     isBuying = false
     return true
 end
@@ -383,8 +439,7 @@ end
 local function processAutoServeAll()
     if isServing or isBuying or isCleaning then return end
 
-    -- 1. Cari pelanggan — SIMPAN referensi dari pencarian pertama
-    local deliverPrompt, deliverPart, deliverAction, deliverObjectTxt = findDeliverPrompt(nil)
+    local deliverPrompt, deliverPart, deliverAction, _ = findDeliverPrompt(nil)
     if not deliverPrompt or not deliverPart then return end
 
     local foodKey  = (deliverAction:match("^Antar%s+(.+)$") or ""):lower()
@@ -396,9 +451,7 @@ local function processAutoServeAll()
     local originalCFrame = hrp.CFrame
     local needSwitchBack = false
 
-    -- 2. Masak jika ada info alat masak
     if foodInfo then
-        -- 2a. Ganti mode dulu kalau perlu (Nasi Goreng / Soda)
         if foodInfo.switchNeeded then
             local sw, swPart = findSwitchPrompt(foodInfo.station)
             if sw and swPart then
@@ -409,21 +462,18 @@ local function processAutoServeAll()
             end
         end
 
-        -- 2b. Masak dengan durasi yang sesuai menu
         local cp, cPart = findCookPrompt(foodInfo.station, foodInfo.cook)
         if cp and cPart then
             local curHrp = getHRP()
             if curHrp then
                 tpToPart(curHrp, cPart)
                 triggerPromptSafe(cp)
-                -- FIX: pakai COOK_DURATION, bukan HoldDuration saja
                 local cookWait = COOK_DURATION[foodInfo.cook] or ((cp.HoldDuration or 0) + 0.5)
                 task.wait(cookWait)
             end
         end
     end
 
-    -- 3. Antar ke pelanggan — PAKAI referensi dari pencarian pertama
     if cfg.autoServeEnabled and not isBuying then
         local promptStillValid = deliverPrompt and deliverPrompt.Parent and deliverPrompt.Enabled
         if promptStillValid then
@@ -434,7 +484,6 @@ local function processAutoServeAll()
                 task.wait((deliverPrompt.HoldDuration or 0) + 0.4)
             end
         else
-            -- Fallback: cari ulang pelanggan menu yang sama
             local dp2, pp2, _, _ = findDeliverPrompt(foodKey ~= "" and foodKey or nil)
             if dp2 and pp2 then
                 local curHrp = getHRP()
@@ -447,16 +496,12 @@ local function processAutoServeAll()
         end
     end
 
-    -- 4. Balik ke posisi awal
-    if getHRP() and not isBuying and not isCleaning then
-        getHRP().CFrame = originalCFrame
+    if not isBuying and not isCleaning then
+        returnToOrigin(originalCFrame)
     end
 
-    -- 5. FIX: Set isServing = false SEBELUM switch balik
-    --    Supaya loop berikutnya tidak terblokir
     isServing = false
 
-    -- 6. Switch balik kompor/kulkas ke default SETELAH isServing = false
     if needSwitchBack and foodInfo then
         task.spawn(function()
             task.wait(0.3)
@@ -497,7 +542,9 @@ local function processAutoClean()
             end
         end
     end
-    if getHRP() and not isBuying and not isServing then getHRP().CFrame = orig end
+    if not isBuying and not isServing then
+        returnToOrigin(orig)
+    end
     isCleaning = false
 end
 
@@ -694,12 +741,12 @@ local function buySingleItemManual(storeId, itemId, priceStr)
     local orig = hrp.CFrame
     local itemInfo = BY_ID[itemId]
     local itemName = (itemInfo and itemInfo.name) or itemId
-    hrp.CFrame = targetCFrame
+    safeTeleport(targetCFrame)
     task.wait(0.4)
     fireAction("storeBuy", { store=storeId, item=itemId })
     Library:Notify("✅ Membeli: "..itemName..(priceStr~="" and " ("..priceStr..")" or ""), 2.5)
     task.wait(0.25)
-    if getHRP() then getHRP().CFrame = orig end
+    returnToOrigin(orig)
     isBuying = false
 end
 
@@ -724,16 +771,14 @@ local function checkStockAlert(stock)
                 table.insert(alerts, string.format("⚠️ **%s** tinggal %d", label, qty))
             end
         else
-            lastStockAlert[key] = nil -- reset alert kalau udah diisi
+            lastStockAlert[key] = nil
         end
     end
     if #alerts > 0 then
         local msg = table.concat(alerts, "\n")
-        -- Notify in-game
         if Library and Library.Notify then
             Library:Notify("⚠️ Stok Hampir Habis!\n" .. table.concat(alerts, "\n"), 5)
         end
-        -- Webhook
         if cfg.webhookEnabled then
             task.spawn(sendWebhook, "⚠️ Low Stock Alert — Warnetopia", msg, 16711680)
         end
@@ -795,23 +840,23 @@ MinimartBox:AddToggle('autoMinimartEnabled', {
 })
 
 -- ══ TAB: DASHBOARD ═══════════════════════════════════════════════
-local DashTab = Window:AddTab('📊 Dashboard')
+local DashTab  = Window:AddTab('📊 Dashboard')
 local StatsBox = DashTab:AddLeftGroupbox('💰 Stats Hari Ini')
 
-local LabelDay        = StatsBox:AddLabel('📅 Hari: -')
-local LabelMoney      = StatsBox:AddLabel('💵 Saldo: -')
-local LabelRating     = StatsBox:AddLabel('⭐ Rating: -')
-local LabelCustomers  = StatsBox:AddLabel('👥 Pelanggan: -')
-local LabelServed     = StatsBox:AddLabel('✅ Served: -')
-local LabelAngry      = StatsBox:AddLabel('😠 Kecewa: -')
+local LabelDay       = StatsBox:AddLabel('📅 Hari: -')
+local LabelMoney     = StatsBox:AddLabel('💵 Saldo: -')
+local LabelRating    = StatsBox:AddLabel('⭐ Rating: -')
+local LabelCustomers = StatsBox:AddLabel('👥 Pelanggan: -')
+local LabelServed    = StatsBox:AddLabel('✅ Served: -')
+local LabelAngry     = StatsBox:AddLabel('😠 Kecewa: -')
 StatsBox:AddDivider()
-local LabelIncome     = StatsBox:AddLabel('📈 Income: -')
-local LabelBilling    = StatsBox:AddLabel('  └ Billing: -')
-local LabelFood       = StatsBox:AddLabel('  └ Makanan: -')
-local LabelTip        = StatsBox:AddLabel('  └ Tips: -')
+local LabelIncome    = StatsBox:AddLabel('📈 Income: -')
+local LabelBilling   = StatsBox:AddLabel('  └ Billing: -')
+local LabelFood      = StatsBox:AddLabel('  └ Makanan: -')
+local LabelTip       = StatsBox:AddLabel('  └ Tips: -')
 StatsBox:AddDivider()
-local LabelSessions   = StatsBox:AddLabel('🖥️ Sesi Aktif: -')
-local LabelQueue      = StatsBox:AddLabel('🕐 Antrean: -')
+local LabelSessions  = StatsBox:AddLabel('🖥️ Sesi Aktif: -')
+local LabelQueue     = StatsBox:AddLabel('🕐 Antrean: -')
 
 local StockBox = DashTab:AddRightGroupbox('📦 Stok Kafe')
 
@@ -844,18 +889,15 @@ AlertBox:AddToggle('webhookStockAlert', {
     Callback = function(val) cfg.webhookEnabled = val end,
 })
 
--- Helper: warna label stok
 local function stockLabel(qty, threshold)
     if qty <= 0 then return " [HABIS!]"
     elseif qty < threshold then return string.format(" [⚠️ %d]", qty)
     else return string.format(" [%d]", qty) end
 end
 
--- Update dashboard dari snap
 local function updateDashboard(snap)
     if not snap then return end
 
-    -- Hari & uang
     pcall(function() LabelDay:SetText("📅 Hari: " .. tostring(snap.day or "-")) end)
     pcall(function()
         local m = snap.money or 0
@@ -863,13 +905,11 @@ local function updateDashboard(snap)
         LabelMoney:SetText("💵 Saldo: " .. formatted)
     end)
 
-    -- Rating
     pcall(function()
         local rep = snap.rep or 0
         LabelRating:SetText(string.format("⭐ Rating: %.2f", rep))
     end)
 
-    -- Today stats
     if snap.today then
         local t = snap.today
         pcall(function() LabelCustomers:SetText("👥 Pelanggan: " .. tostring(t.customers or 0)) end)
@@ -894,7 +934,6 @@ local function updateDashboard(snap)
         end
     end
 
-    -- Sessions & queue
     pcall(function()
         local sesCount = 0
         if snap.sessions then
@@ -910,7 +949,6 @@ local function updateDashboard(snap)
         LabelQueue:SetText("🕐 Antrean: " .. qCount)
     end)
 
-    -- Stok kafe
     if snap.stock then
         local s = snap.stock
         local thr = cfg.stockThreshold
@@ -919,7 +957,6 @@ local function updateDashboard(snap)
         pcall(function() LabelStockSoda:SetText("🥤 Soda" .. stockLabel(s.soda or 0, thr)) end)
         pcall(function() LabelStockCoffee:SetText("☕ Kopi" .. stockLabel(s.coffee or 0, thr)) end)
         pcall(function() LabelStockNoodle:SetText("🍜 Mie/Nasi" .. stockLabel(s.noodle or 0, thr)) end)
-        -- Check alert
         checkStockAlert(s)
     end
 end
@@ -934,9 +971,8 @@ TimerBox:AddDivider()
 TimerBox:AddButton({
     Text='🚀 TP ke Toko Terpilih',
     Func=function()
-        local hrp = getHRP()
         local target = STORE_LOCATIONS[selectedStoreId]
-        if hrp and target then hrp.CFrame = target end
+        if target then safeTeleport(target) end
     end,
     Tooltip='Teleport ke toko yang dipilih di kanan',
 })
@@ -1244,7 +1280,6 @@ local function processSnap(snap)
 
     if not snap.shops then return end
 
-    -- Update restock timer dari snap
     for k, v in pairs(snap.shops) do
         if type(v) == "number" and v > 0 then
             if v > 1000000 then
@@ -1300,7 +1335,7 @@ local function processSnap(snap)
     for storeId, items in pairs(purchaseQueue) do
         local targetCFrame = STORE_LOCATIONS[storeId]
         if targetCFrame then
-            hrp.CFrame = targetCFrame
+            safeTeleport(targetCFrame)
             task.wait(0.45)
             for _, itemData in ipairs(items) do
                 local stillEnabled = (storeId == "minimart" and cfg.autoMinimartEnabled)
@@ -1325,7 +1360,7 @@ local function processSnap(snap)
     end
 
     task.wait(0.2)
-    if getHRP() then getHRP().CFrame = originalCFrame end
+    returnToOrigin(originalCFrame)
     isBuying = false
 
     if cfg.webhookEnabled and #boughtLog > 0 then
@@ -1346,7 +1381,6 @@ local serveTimer = 0
 local esTehTimer = 0
 
 RunService.Heartbeat:Connect(function(dt)
-    -- WalkSpeed
     if cfg.walkSpeedEnabled then
         local hum = getHumanoid()
         if hum and hum.WalkSpeed ~= cfg.walkSpeedValue then
@@ -1354,7 +1388,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- Auto Place
     if cfg.autoPlaceEnabled then
         placeTimer = placeTimer + dt
         if placeTimer >= 0.6 then
@@ -1363,7 +1396,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- Auto Serve All Menu
     if cfg.autoServeEnabled then
         serveTimer = serveTimer + dt
         if serveTimer >= 1.2 then
@@ -1372,7 +1404,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- Auto Clean
     if cfg.autoCleanEnabled then
         cleanTimer = cleanTimer + dt
         if cleanTimer >= 1.5 then
@@ -1381,7 +1412,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- Es Teh Buff
     esTehTimer = esTehTimer + dt
     if esTehTimer >= 1.0 then
         esTehTimer = 0
@@ -1398,7 +1428,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- UI Sync & Restock Timer
     uiTimer = uiTimer + dt
     if uiTimer >= 0.5 then
         uiTimer = 0
@@ -1414,7 +1443,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 
-    -- Auto Open / Day
     if not cfg.autoOpenEnabled and not cfg.autoDayEnabled then
         lastStatus = nil
         return
@@ -1473,7 +1501,6 @@ end)
 
 SaveManager:LoadAutoloadConfig()
 
-
 -- ─── MOBILE TOGGLE BUTTON ────────────────────────────────────────
 local UIS = game:GetService("UserInputService")
 if UIS.TouchEnabled then
@@ -1499,7 +1526,7 @@ if UIS.TouchEnabled then
     Btn.Font                   = Enum.Font.GothamBold
     Btn.ZIndex                 = 9999
     Btn.AutoButtonColor        = false
-    Btn.Modal                  = true  -- KUNCI: blok touch tembus ke game
+    Btn.Modal                  = true
     Btn.Parent                 = MobileGui
 
     Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 14)
@@ -1508,7 +1535,6 @@ if UIS.TouchEnabled then
     stroke.Thickness = 2.5
     stroke.Parent    = Btn
 
-    -- State
     local guiVisible   = true
     local isDragging   = false
     local movedPixels  = 0
@@ -1516,10 +1542,8 @@ if UIS.TouchEnabled then
     local startBtnPos  = UDim2.new()
     local touchActive  = false
 
-    -- Fungsi toggle GUI
     local function toggleGui()
         guiVisible = not guiVisible
-        -- Cari semua ScreenGui LinoriaLib dan toggle
         for _, g in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
             if g:IsA("ScreenGui")
             and g.Name ~= "MobileToggle"
@@ -1529,12 +1553,10 @@ if UIS.TouchEnabled then
             end
         end
         Btn.Text = guiVisible and "🖤" or "👁"
-        -- Coba juga via Library
         pcall(function() Library.Toggled = guiVisible end)
         pcall(function() Library:SetVisible(guiVisible) end)
     end
 
-    -- Touch began
     Btn.InputBegan:Connect(function(inp)
         if inp.UserInputType ~= Enum.UserInputType.Touch then return end
         touchActive   = true
@@ -1557,7 +1579,6 @@ if UIS.TouchEnabled then
         end)
     end)
 
-    -- Touch ended
     Btn.InputEnded:Connect(function(inp)
         if inp.UserInputType ~= Enum.UserInputType.Touch then return end
         touchActive = false
