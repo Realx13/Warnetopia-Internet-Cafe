@@ -1,5 +1,5 @@
 --[[
-    Warnetopia — Auto Buy, All Stores Manual Buy, Restock Timer, Auto Tempatkan, WalkSpeed, Anti AFK, Webhook & SaveManager (Autoload Config)
+    Warnetopia — Auto Buy, All Stores Manual Buy, Restock Timer, Full Auto Tempatkan, WalkSpeed, Anti AFK, Webhook & SaveManager (Autoload Config)
     UI: LinoriaLib
     Credit : Realx
 --]]
@@ -101,18 +101,19 @@ local cfg = {
 }
 
 -- ─── STATE ────────────────────────────────────────────────────────────────────
-local lastStatus       = nil
-local reopenPending    = false
-local continuePending  = false
-local isBuying         = false
-local lastBuyCooldown  = 0
-local latestSnap       = nil
-local restockEndClock  = nil
-local discountPercent  = 0
+local lastStatus        = nil
+local reopenPending     = false
+local continuePending   = false
+local isBuying          = false
+local lastBuyCooldown   = 0
+local latestSnap        = nil
+local restockEndClock   = nil
+local discountPercent   = 0
+local assignedCooldowns = {}
 
-local selectedStoreId  = "computer"
-local storeOrderedUI   = {}
-local activeSlotItems  = {}
+local selectedStoreId   = "computer"
+local storeOrderedUI    = {}
+local activeSlotItems   = {}
 
 -- ─── WEBHOOK SENDER ───────────────────────────────────────────────────────────
 local function sendWebhook(title, description, colorHex)
@@ -578,7 +579,7 @@ OpenBox:AddToggle('autoDayEnabled', {
 OpenBox:AddToggle('autoPlaceEnabled', {
     Text     = 'Auto Tempatkan Pelanggan',
     Default  = false,
-    Tooltip  = 'Otomatis klik Tempatkan & Otomatis di tab Antrean WarnetOS (buka menu Billing)',
+    Tooltip  = 'Otomatis tempatkan pelanggan ke stasiun kosong di background (tanpa buka komputer)',
     Callback = function(val) cfg.autoPlaceEnabled = val end,
 })
 
@@ -898,14 +899,68 @@ local function updateFromSnapshot(snap)
     refreshManualStoreSlots()
 end
 
--- ─── AUTO TEMPATKAN PELANGGAN (WARNETOS BILLING) ──────────────────────────────
+-- ─── AUTO TEMPATKAN PELANGGAN (BACKGROUND REMOTE + UI FALLBACK) ───────────────
+local function collectQueueIdsFromSnapshot(node, visited, results, depth)
+    if type(node) ~= "table" or visited[node] or depth > 5 then return end
+    visited[node] = true
+
+    -- Cek langsung jika tabel ini adalah objek pelanggan (punya id hex 12 karakter seperti "88638c02256e" & durasi/nama)
+    if type(node.id) == "string" and #node.id >= 8 and #node.id <= 24 and node.id:match("^[%w%-_]+$") then
+        if node.hours or node.duration or node.patience or node.name or node.customerName or node.tier or node.want then
+            results[node.id] = true
+        end
+    end
+
+    -- Cek key khusus antrean di snapshot
+    local queueKeys = { "queue", "antrean", "waiting", "waitlist", "customers", "visitors", "guests" }
+    for _, qKey in ipairs(queueKeys) do
+        local qList = node[qKey]
+        if type(qList) == "table" then
+            for k, v in pairs(qList) do
+                if type(v) == "table" and type(v.id) == "string" then
+                    results[v.id] = true
+                elseif type(k) == "string" and #k >= 8 and #k <= 24 and type(v) == "table" then
+                    results[k] = true
+                end
+            end
+        end
+    end
+
+    for k, v in pairs(node) do
+        if type(v) == "table" and k ~= "shops" and k ~= "inventory" and k ~= "desks" and k ~= "stations" then
+            collectQueueIdsFromSnapshot(v, visited, results, depth + 1)
+        end
+    end
+end
+
 local function processAutoPlaceCustomer()
+    local now = os.clock()
+    local firedAnyRemote = false
+
+    -- 1. MODE REMOTE (Jalan full di background tanpa perlu buka komputer kasir)
+    if latestSnap then
+        local queueIds = {}
+        collectQueueIdsFromSnapshot(latestSnap, {}, queueIds, 0)
+
+        for custId, _ in pairs(queueIds) do
+            local lastSent = assignedCooldowns[custId] or 0
+            if now - lastSent >= 2.5 then
+                assignedCooldowns[custId] = now
+                fireAction("assign", { id = custId, desk = "auto" })
+                firedAnyRemote = true
+                task.wait(0.15)
+            end
+        end
+    end
+
+    if firedAnyRemote then return end
+
+    -- 2. MODE UI FALLBACK (Jika komputer kasir sedang dibuka di layar)
     local gui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
     if not gui then return end
     local ui = gui:FindFirstChild("WarnetopiaUI") or gui
     if not ui then return end
 
-    -- 1. Prioritas pertama: Cek apakah popup "Pilih stasiun" terbuka (ada tombol "Otomatis")
     for _, obj in ipairs(ui:GetDescendants()) do
         if (obj:IsA("TextButton") or obj:IsA("TextLabel")) and (obj.Text or "") == "Otomatis" then
             local btn = obj:IsA("GuiButton") and obj or obj:FindFirstAncestorWhichIsA("GuiButton")
@@ -916,7 +971,6 @@ local function processAutoPlaceCustomer()
         end
     end
 
-    -- 2. Jika popup belum terbuka, klik 1 tombol "Tempatkan" paling atas di antrean
     local topBtn = nil
     local topY = math.huge
     for _, obj in ipairs(ui:GetDescendants()) do
@@ -949,9 +1003,11 @@ RunService.Heartbeat:Connect(function(dt)
 
     if cfg.autoPlaceEnabled then
         placeTimer = placeTimer + dt
-        if placeTimer >= 0.45 then
+        if placeTimer >= 0.6 then
             placeTimer = 0
-            pcall(processAutoPlaceCustomer)
+            task.spawn(function()
+                pcall(processAutoPlaceCustomer)
+            end)
         end
     end
 
@@ -1053,8 +1109,17 @@ local RARE_STORE_MAP = {
 }
 
 local function processSnap(snap)
-    if not snap or not snap.shops then return end
+    if not snap then return end
     latestSnap = snap
+
+    -- Langsung proses antrean pelanggan begitu ada snapshot baru dari server
+    if cfg.autoPlaceEnabled then
+        task.spawn(function()
+            pcall(processAutoPlaceCustomer)
+        end)
+    end
+
+    if not snap.shops then return end
     updateFromSnapshot(snap)
 
     if (not cfg.autoBuyEnabled and not cfg.autoMinimartEnabled) or isBuying then return end
