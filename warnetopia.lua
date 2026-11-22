@@ -1,5 +1,5 @@
 --[[
-    Warnetopia — Auto Buy, All Stores Manual Buy, Restock Timer, Full Auto Tempatkan, WalkSpeed, Anti AFK, Webhook & SaveManager (Autoload Config)
+    Warnetopia — Auto Buy, All Stores Manual Buy, Restock Timer, Full Auto Tempatkan, Auto Bersih Sampah, WalkSpeed, Anti AFK, Webhook & SaveManager (Autoload Config)
     UI: LinoriaLib
     Credit : Realx
 --]]
@@ -80,6 +80,7 @@ local cfg = {
     autoOpenEnabled     = false,
     autoDayEnabled      = false,
     autoPlaceEnabled    = false,
+    autoCleanEnabled    = false,
 
     walkSpeedEnabled    = false,
     walkSpeedValue      = 32,
@@ -105,6 +106,7 @@ local lastStatus        = nil
 local reopenPending     = false
 local continuePending   = false
 local isBuying          = false
+local isCleaning        = false
 local lastBuyCooldown   = 0
 local latestSnap        = nil
 local restockEndClock   = nil
@@ -256,8 +258,8 @@ end
 
 -- ─── HELPER: Beli 1 Item Manual dari Tombol UI ────────────────────────────────
 local function buySingleItemManual(storeId, itemId, priceStr)
-    if isBuying then
-        Library:Notify("Sedang proses beli lain, tunggu sebentar...", 2)
+    if isBuying or isCleaning then
+        Library:Notify("Sedang proses aksi lain, tunggu sebentar...", 2)
         return
     end
 
@@ -583,6 +585,13 @@ OpenBox:AddToggle('autoPlaceEnabled', {
     Callback = function(val) cfg.autoPlaceEnabled = val end,
 })
 
+OpenBox:AddToggle('autoCleanEnabled', {
+    Text     = 'Auto Bersih Sampah',
+    Default  = false,
+    Tooltip  = 'Otomatis teleport ke sampah di lantai, bersihkan, lalu kembali ke posisi awal',
+    Callback = function(val) cfg.autoCleanEnabled = val end,
+})
+
 local DelayBox = OpenTab:AddLeftGroupbox('⏱️ Delay')
 
 DelayBox:AddSlider('reopenDelay', {
@@ -899,19 +908,84 @@ local function updateFromSnapshot(snap)
     refreshManualStoreSlots()
 end
 
+-- ─── AUTO BERSIH SAMPAH (PROXIMITY PROMPT + TELEPORT) ─────────────────────────
+local function findTrashPrompts()
+    local list = {}
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") and obj.Enabled then
+            local actionTxt = (obj.ActionText or ""):lower()
+            local objectTxt = (obj.ObjectText or ""):lower()
+            local parentName = (obj.Parent and obj.Parent.Name or ""):lower()
+            if actionTxt:find("bersih") or actionTxt:find("sampah") or actionTxt:find("clean") or actionTxt:find("trash")
+                or objectTxt:find("sampah") or objectTxt:find("trash") or parentName:find("trash") or parentName:find("sampah") then
+                local targetPart = obj.Parent
+                if targetPart and targetPart:IsA("Attachment") then
+                    targetPart = targetPart.Parent
+                end
+                if targetPart and (targetPart:IsA("BasePart") or targetPart:IsA("Model")) then
+                    table.insert(list, { prompt = obj, part = targetPart })
+                end
+            end
+        end
+    end
+    return list
+end
+
+local function triggerPromptSafe(prompt)
+    if not prompt or not prompt.Parent or not prompt.Enabled then return end
+    if fireproximityprompt then
+        pcall(function() fireproximityprompt(prompt) end)
+    else
+        pcall(function() prompt:InputHoldBegin() end)
+        task.wait((prompt.HoldDuration or 0) + 0.15)
+        pcall(function() prompt:InputHoldEnd() end)
+    end
+end
+
+local function processAutoCleanTrash()
+    if isCleaning or isBuying then return end
+    local hrp = getHRP()
+    if not hrp then return end
+
+    local trashList = findTrashPrompts()
+    if #trashList == 0 then return end
+
+    isCleaning = true
+    local originalCFrame = hrp.CFrame
+
+    for _, item in ipairs(trashList) do
+        if not cfg.autoCleanEnabled or isBuying then break end
+        local prompt = item.prompt
+        local part = item.part
+        if prompt and prompt.Parent and prompt.Enabled and part and part.Parent then
+            local targetPos = part:IsA("Model") and part:GetPivot().Position or part.Position
+            local curHrp = getHRP()
+            if curHrp then
+                curHrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+                task.wait(0.25)
+                triggerPromptSafe(prompt)
+                task.wait((prompt.HoldDuration or 0) + 0.35)
+            end
+        end
+    end
+
+    if getHRP() and not isBuying then
+        getHRP().CFrame = originalCFrame
+    end
+    isCleaning = false
+end
+
 -- ─── AUTO TEMPATKAN PELANGGAN (BACKGROUND REMOTE + UI FALLBACK) ───────────────
 local function collectQueueIdsFromSnapshot(node, visited, results, depth)
     if type(node) ~= "table" or visited[node] or depth > 5 then return end
     visited[node] = true
 
-    -- Cek langsung jika tabel ini adalah objek pelanggan (punya id hex 12 karakter seperti "88638c02256e" & durasi/nama)
     if type(node.id) == "string" and #node.id >= 8 and #node.id <= 24 and node.id:match("^[%w%-_]+$") then
         if node.hours or node.duration or node.patience or node.name or node.customerName or node.tier or node.want then
             results[node.id] = true
         end
     end
 
-    -- Cek key khusus antrean di snapshot
     local queueKeys = { "queue", "antrean", "waiting", "waitlist", "customers", "visitors", "guests" }
     for _, qKey in ipairs(queueKeys) do
         local qList = node[qKey]
@@ -992,6 +1066,7 @@ end
 local uiTimer = 0
 local checkTimer = 0
 local placeTimer = 0
+local cleanTimer = 0
 
 RunService.Heartbeat:Connect(function(dt)
     if cfg.walkSpeedEnabled then
@@ -1007,6 +1082,16 @@ RunService.Heartbeat:Connect(function(dt)
             placeTimer = 0
             task.spawn(function()
                 pcall(processAutoPlaceCustomer)
+            end)
+        end
+    end
+
+    if cfg.autoCleanEnabled then
+        cleanTimer = cleanTimer + dt
+        if cleanTimer >= 1.5 then
+            cleanTimer = 0
+            task.spawn(function()
+                pcall(processAutoCleanTrash)
             end)
         end
     end
@@ -1112,7 +1197,6 @@ local function processSnap(snap)
     if not snap then return end
     latestSnap = snap
 
-    -- Langsung proses antrean pelanggan begitu ada snapshot baru dari server
     if cfg.autoPlaceEnabled then
         task.spawn(function()
             pcall(processAutoPlaceCustomer)
