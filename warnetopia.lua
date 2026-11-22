@@ -1,6 +1,6 @@
 --[[
-    Warnetopia Hub — Full Script (PC & Mobile Ready)
-    UI: LinoriaLib
+    Warnetopia Hub — Full Script (Fluent UI — PC & Mobile Ready)
+    UI: Fluent (dawid-scripts/Fluent)
     Features:
     ✅ Auto Buy Rare Items (Komputer, Mebel, Dekorasi)
     ✅ Auto Restock Minimart
@@ -14,15 +14,13 @@
     ✅ Dashboard Real-Time + Low Stock Alert
     ✅ WalkSpeed Custom & Anti AFK
     ✅ Discord Webhook & Save/Load Config
-    ✅ Mobile Auto-Fit Screen, Scrollable Columns, Drag & Resize Window, Auto-Close Popups
     Credit: Realx13
 --]]
 
--- ─── LOAD LINORIA ─────────────────────────────────────────────────
-local repo         = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/'
-local Library      = loadstring(game:HttpGet(repo .. 'Library.lua'))()
-local ThemeManager = loadstring(game:HttpGet(repo .. 'addons/ThemeManager.lua'))()
-local SaveManager  = loadstring(game:HttpGet(repo .. 'addons/SaveManager.lua'))()
+-- ─── LOAD FLUENT UI ───────────────────────────────────────────────
+local Fluent           = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager      = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 -- ─── SERVICES ─────────────────────────────────────────────────────
 local Players             = game:GetService("Players")
@@ -94,7 +92,6 @@ local ESTEH_ID_TO_LABEL = {
     es_jeruk = "Es Jeruk ($7.000)",
 }
 
--- Waktu masak per menu (detik)
 local COOK_DURATION = {
     ["Buat Mie Telur"]   = 2.5,
     ["Buat Nasi Goreng"] = 2.5,
@@ -104,7 +101,6 @@ local COOK_DURATION = {
     ["Buat Soda"]        = 0.8,
 }
 
--- Menu masak: foodKey → { cook, station, switchNeeded }
 local FOOD_MAP = {
     ["mie telur"]   = { cook = "Buat Mie Telur",  station = "stove",          switchNeeded = false },
     ["nasi goreng"] = { cook = "Buat Nasi Goreng", station = "stove",          switchNeeded = true  },
@@ -172,6 +168,17 @@ local assignedCooldowns = {}
 local selectedStoreId   = "computer"
 local storeOrderedUI    = {}
 local activeSlotItems   = {}
+
+-- ─── NOTIFY HELPER ────────────────────────────────────────────────
+local function notify(title, content, duration)
+    pcall(function()
+        Fluent:Notify({
+            Title    = title or "Warnetopia Hub",
+            Content  = content or "",
+            Duration = duration or 3,
+        })
+    end)
+end
 
 -- ─── HELPERS DASAR ────────────────────────────────────────────────
 local function fireAction(action, data)
@@ -356,7 +363,7 @@ local function buyEsTeh(itemId, isAuto)
     safeTeleport(STORE_LOCATIONS.esteh)
     task.wait(0.45)
     fireAction("eat", { item = itemId, warung = "esteh" })
-    Library:Notify((isAuto and "🥤 Auto Buff: " or "✅ ") .. (ESTEH_ID_TO_LABEL[itemId] or itemId), 2.5)
+    notify(isAuto and "🥤 Auto Buff" or "✅ Es Teh Buff", ESTEH_ID_TO_LABEL[itemId] or itemId, 2.5)
     task.wait(0.3)
     returnToOrigin(orig)
     isBuying = false
@@ -636,38 +643,19 @@ LocalPlayer.Idled:Connect(function()
 end)
 
 -- ─── MANUAL BUY HELPERS ───────────────────────────────────────────
-local function setButtonState(btnObj, newText, isVisible)
+local StoreSlotButtons = {}
+
+local function setFluentButtonState(btnObj, newTitle, newDesc, isVisible)
     if not btnObj then return end
     pcall(function()
-        local container = btnObj.Container
-        if container and container:IsA("GuiObject") then
-            container.Visible = isVisible
-        end
-        local lbl = btnObj.Label
-        if not lbl and container then
-            for _, d in ipairs(container:GetDescendants()) do
-                if d:IsA("TextLabel") then lbl = d break end
-            end
-        end
-        if lbl and lbl:IsA("TextLabel") then
-            lbl.Text = newText
-            lbl.TextScaled = true
-            local c = lbl:FindFirstChildOfClass("UITextSizeConstraint")
-            if not c then c = Instance.new("UITextSizeConstraint") c.Parent = lbl end
-            c.MaxTextSize = 15
-            c.MinTextSize = 12
+        if btnObj.SetTitle then btnObj:SetTitle(newTitle) end
+        if btnObj.SetDesc then btnObj:SetDesc(newDesc) end
+        local frame = btnObj.Frame or btnObj.Container or btnObj.Holder
+        if frame and frame:IsA("GuiObject") then
+            frame.Visible = isVisible
         end
     end)
 end
-
-local function buildButtonLabel(name, qty, priceStr, discPct)
-    local statusStr = qty > 0 and ("x"..qty) or "HABIS"
-    local discTag   = (discPct and discPct > 0) and string.format(" (-%d%%)", discPct) or ""
-    local pricePart = (priceStr and priceStr ~= "") and (" • "..priceStr..discTag) or discTag
-    return string.format("%s (%s)%s", name, statusStr, pricePart)
-end
-
-local StoreSlotButtons = {}
 
 local function refreshManualStoreSlots()
     table.clear(activeSlotItems)
@@ -714,17 +702,20 @@ local function refreshManualStoreSlots()
             local item = finalItems[i]
             if item then
                 activeSlotItems[i] = item
-                setButtonState(StoreSlotButtons[i], buildButtonLabel(item.name, item.qty, item.priceStr, item.discPct), true)
+                local statusStr = item.qty > 0 and ("Stok: " .. item.qty) or "HABIS"
+                local discTag   = (item.discPct and item.discPct > 0) and string.format(" (-%d%%)", item.discPct) or ""
+                local descText  = statusStr .. (item.priceStr ~= "" and (" • Harga: " .. item.priceStr .. discTag) or discTag)
+                setFluentButtonState(StoreSlotButtons[i], item.name, descText, true)
             else
-                setButtonState(StoreSlotButtons[i], "", false)
+                setFluentButtonState(StoreSlotButtons[i], "", "", false)
             end
         end
     else
         for i = 1, MAX_SLOTS do
             if i <= 4 then
-                setButtonState(StoreSlotButtons[i], string.format("Slot %d: Buka toko dulu / tunggu reset", i), true)
+                setFluentButtonState(StoreSlotButtons[i], "Slot " .. i, "Buka UI toko dulu / tunggu reset", true)
             else
-                setButtonState(StoreSlotButtons[i], "", false)
+                setFluentButtonState(StoreSlotButtons[i], "", "", false)
             end
         end
     end
@@ -732,7 +723,7 @@ end
 
 local function buySingleItemManual(storeId, itemId, priceStr)
     if isBuying or isCleaning or isServing then
-        Library:Notify("Sedang proses aksi lain, tunggu sebentar...", 2)
+        notify("Tunggu Sebentar", "Sedang menjalankan aksi lain...", 2)
         return
     end
     local hrp = getHRP()
@@ -745,7 +736,7 @@ local function buySingleItemManual(storeId, itemId, priceStr)
     safeTeleport(targetCFrame)
     task.wait(0.4)
     fireAction("storeBuy", { store=storeId, item=itemId })
-    Library:Notify("✅ Membeli: "..itemName..(priceStr~="" and " ("..priceStr..")" or ""), 2.5)
+    notify("✅ Berhasil Beli", itemName .. (priceStr ~= "" and " (" .. priceStr .. ")" or ""), 2.5)
     task.wait(0.25)
     returnToOrigin(orig)
     isBuying = false
@@ -769,7 +760,7 @@ local function checkStockAlert(stock)
         if qty < cfg.stockThreshold then
             if not lastStockAlert[key] or (os.clock() - lastStockAlert[key]) > 120 then
                 lastStockAlert[key] = os.clock()
-                table.insert(alerts, string.format("⚠️ **%s** tinggal %d", label, qty))
+                table.insert(alerts, string.format("⚠️ %s tinggal %d", label, qty))
             end
         else
             lastStockAlert[key] = nil
@@ -777,121 +768,132 @@ local function checkStockAlert(stock)
     end
     if #alerts > 0 then
         local msg = table.concat(alerts, "\n")
-        if Library and Library.Notify then
-            Library:Notify("⚠️ Stok Hampir Habis!\n" .. table.concat(alerts, "\n"), 5)
-        end
+        notify("⚠️ Stok Hampir Habis!", msg, 5)
         if cfg.webhookEnabled then
             task.spawn(sendWebhook, "⚠️ Low Stock Alert — Warnetopia", msg, 16711680)
         end
     end
 end
 
--- ─── BUILD LINORIA UI ─────────────────────────────────────────────
-local initialWindowSize = UserInputService.TouchEnabled
-    and UDim2.fromOffset(500, 340)
-    or UDim2.fromOffset(780, 650)
-
-local Window = Library:CreateWindow({
-    Title    = 'Warnetopia Hub 🖤 | Made by Realx13',
-    Center   = true,
-    AutoShow = true,
-    Size     = initialWindowSize,
+-- ─── BUILD FLUENT UI ──────────────────────────────────────────────
+local isMobile = UserInputService.TouchEnabled
+local Window = Fluent:CreateWindow({
+    Title       = "Warnetopia Hub 🖤",
+    SubTitle    = "by Realx13",
+    TabWidth    = isMobile and 125 or 160,
+    Size        = isMobile and UDim2.fromOffset(500, 320) or UDim2.fromOffset(620, 480),
+    Acrylic     = false,
+    Theme       = "Dark",
+    MinimizeKey = Enum.KeyCode.RightShift
 })
+
+local Tabs = {
+    AutoBuy   = Window:AddTab({ Title = "Auto Buy",   Icon = "shopping-cart" }),
+    Dashboard = Window:AddTab({ Title = "Dashboard",  Icon = "bar-chart-2" }),
+    TokoKota  = Window:AddTab({ Title = "Toko Kota",  Icon = "store" }),
+    AutoFarm  = Window:AddTab({ Title = "Auto Farm",  Icon = "zap" }),
+    Settings  = Window:AddTab({ Title = "Settings",   Icon = "settings" }),
+}
+
+local Options = Fluent.Options
 
 -- ══ TAB 1: AUTO BUY ══════════════════════════════════════════════
-local BuyTab  = Window:AddTab('Auto Buy')
-local BuyBox  = BuyTab:AddLeftGroupbox('⚙️ Auto Buy Rare')
+local SecAutoBuy = Tabs.AutoBuy:AddSection("⚙️ Auto Buy Rare")
 
-BuyBox:AddToggle('autoBuyEnabled', {
-    Text='Auto Buy Rare ON/OFF', Default=false,
-    Tooltip='Aktifkan auto beli item langka dari toko kota',
-    Callback=function(val) cfg.autoBuyEnabled = val end,
-})
-BuyBox:AddSlider('minTier', {
-    Text='Minimum Tier', Min=1, Max=4, Default=3, Rounding=0,
-    Tooltip='Hanya beli item dengan tier >= ini',
-    Callback=function(val) cfg.minTier = val end,
+SecAutoBuy:AddToggle("autoBuyEnabled", {
+    Title       = "Auto Buy Rare ON/OFF",
+    Description = "Otomatis teleport & beli item langka dari toko kota",
+    Default     = false,
+    Callback    = function(val) cfg.autoBuyEnabled = val end
 })
 
-local RarityBox = BuyTab:AddLeftGroupbox('✨ Rarity Filter')
-RarityBox:AddToggle('rarityLangka', {
-    Text='Langka (★)', Default=true,
-    Callback=function(val) cfg.rarityLangka = val end,
-})
-RarityBox:AddToggle('raritySangat', {
-    Text='Sangat Langka (★★)', Default=true,
-    Callback=function(val) cfg.raritySangat = val end,
-})
-
-local TokoBox = BuyTab:AddRightGroupbox('🏪 Toko Rare Items')
-TokoBox:AddToggle('store_computer', {
-    Text='💻 Toko Komputer Jaya', Default=true,
-    Callback=function(val) cfg.store_computer = val end,
-})
-TokoBox:AddToggle('store_furniture', {
-    Text='🪑 Mebel Jati', Default=true,
-    Callback=function(val) cfg.store_furniture = val end,
-})
-TokoBox:AddToggle('store_decor', {
-    Text='🌿 Galeri Dekorasi', Default=true,
-    Callback=function(val) cfg.store_decor = val end,
+SecAutoBuy:AddSlider("minTier", {
+    Title       = "Minimum Tier",
+    Description = "Hanya beli item dengan tier >= angka ini",
+    Default     = 3,
+    Min         = 1,
+    Max         = 4,
+    Rounding    = 0,
+    Callback    = function(val) cfg.minTier = val end
 })
 
-local MinimartBox = BuyTab:AddRightGroupbox('🛒 Minimart 24')
-MinimartBox:AddToggle('autoMinimartEnabled', {
-    Text='Auto Restock Minimart', Default=false,
-    Tooltip='Borong semua stok di Minimart 24',
-    Callback=function(val) cfg.autoMinimartEnabled = val end,
-})
+local SecRarity = Tabs.AutoBuy:AddSection("✨ Rarity Filter")
 
--- ══ TAB: DASHBOARD ═══════════════════════════════════════════════
-local DashTab  = Window:AddTab('📊 Dashboard')
-local StatsBox = DashTab:AddLeftGroupbox('💰 Stats Hari Ini')
-
-local LabelDay       = StatsBox:AddLabel('📅 Hari: -')
-local LabelMoney     = StatsBox:AddLabel('💵 Saldo: -')
-local LabelRating    = StatsBox:AddLabel('⭐ Rating: -')
-local LabelCustomers = StatsBox:AddLabel('👥 Pelanggan: -')
-local LabelServed    = StatsBox:AddLabel('✅ Served: -')
-local LabelAngry     = StatsBox:AddLabel('😠 Kecewa: -')
-StatsBox:AddDivider()
-local LabelIncome    = StatsBox:AddLabel('📈 Income: -')
-local LabelBilling   = StatsBox:AddLabel('  └ Billing: -')
-local LabelFood      = StatsBox:AddLabel('  └ Makanan: -')
-local LabelTip       = StatsBox:AddLabel('  └ Tips: -')
-StatsBox:AddDivider()
-local LabelSessions  = StatsBox:AddLabel('🖥️ Sesi Aktif: -')
-local LabelQueue     = StatsBox:AddLabel('🕐 Antrean: -')
-
-local StockBox = DashTab:AddRightGroupbox('📦 Stok Kafe')
-
-local LabelStockSnack  = StockBox:AddLabel('🍟 Snack: -')
-local LabelStockTea    = StockBox:AddLabel('🧊 Es Teh: -')
-local LabelStockSoda   = StockBox:AddLabel('🥤 Soda: -')
-local LabelStockCoffee = StockBox:AddLabel('☕ Kopi: -')
-local LabelStockNoodle = StockBox:AddLabel('🍜 Mie/Nasi: -')
-StockBox:AddDivider()
-
-local AlertBox = DashTab:AddRightGroupbox('⚠️ Low Stock Alert')
-AlertBox:AddToggle('stockAlertEnabled', {
-    Text     = 'Aktifkan Stock Alert',
+SecRarity:AddToggle("rarityLangka", {
+    Title    = "Langka (★)",
     Default  = true,
-    Tooltip  = 'Kasih warning kalau stok menu kafe mau habis',
-    Callback = function(val) cfg.stockAlertEnabled = val end,
+    Callback = function(val) cfg.rarityLangka = val end
 })
-AlertBox:AddSlider('stockThreshold', {
-    Text     = 'Batas Stok Min.',
-    Min      = 5,
-    Max      = 50,
-    Default  = 10,
-    Rounding = 0,
-    Callback = function(val) cfg.stockThreshold = val end,
+
+SecRarity:AddToggle("raritySangat", {
+    Title    = "Sangat Langka (★★)",
+    Default  = true,
+    Callback = function(val) cfg.raritySangat = val end
 })
-AlertBox:AddToggle('webhookStockAlert', {
-    Text     = 'Kirim Alert ke Discord',
-    Default  = false,
-    Tooltip  = 'Butuh Webhook URL di tab Settings',
-    Callback = function(val) cfg.webhookEnabled = val end,
+
+local SecToko = Tabs.AutoBuy:AddSection("🏪 Target Toko Rare")
+
+SecToko:AddToggle("store_computer", {
+    Title    = "💻 Toko Komputer Jaya",
+    Default  = true,
+    Callback = function(val) cfg.store_computer = val end
+})
+
+SecToko:AddToggle("store_furniture", {
+    Title    = "🪑 Mebel Jati",
+    Default  = true,
+    Callback = function(val) cfg.store_furniture = val end
+})
+
+SecToko:AddToggle("store_decor", {
+    Title    = "🌿 Galeri Dekorasi",
+    Default  = true,
+    Callback = function(val) cfg.store_decor = val end
+})
+
+local SecMinimart = Tabs.AutoBuy:AddSection("🛒 Minimart 24")
+
+SecMinimart:AddToggle("autoMinimartEnabled", {
+    Title       = "Auto Restock Minimart",
+    Description = "Borong otomatis semua stok bahan makanan di Minimart 24",
+    Default     = false,
+    Callback    = function(val) cfg.autoMinimartEnabled = val end
+})
+
+-- ══ TAB 2: DASHBOARD ═════════════════════════════════════════════
+local ParaStats = Tabs.Dashboard:AddParagraph({
+    Title   = "💰 Stats Warnet Hari Ini",
+    Content = "📅 Hari: -\n💵 Saldo: -\n⭐ Rating: -\n👥 Pelanggan: - | ✅ Served: - | 😠 Kecewa: -\n📈 Income: - (Billing: - | Makanan: - | Tips: -)\n🖥️ Sesi Aktif: - | 🕐 Antrean: -"
+})
+
+local ParaStock = Tabs.Dashboard:AddParagraph({
+    Title   = "📦 Stok Kafe Saat Ini",
+    Content = "🍟 Snack: -\n🧊 Es Teh: -\n🥤 Soda: -\n☕ Kopi: -\n🍜 Mie/Nasi: -"
+})
+
+local SecAlert = Tabs.Dashboard:AddSection("⚠️ Low Stock Alert")
+
+SecAlert:AddToggle("stockAlertEnabled", {
+    Title       = "Aktifkan Stock Alert",
+    Description = "Munculkan notifikasi jika stok kafe di bawah batas",
+    Default     = true,
+    Callback    = function(val) cfg.stockAlertEnabled = val end
+})
+
+SecAlert:AddSlider("stockThreshold", {
+    Title       = "Batas Stok Minimum",
+    Default     = 10,
+    Min         = 5,
+    Max         = 50,
+    Rounding    = 0,
+    Callback    = function(val) cfg.stockThreshold = val end
+})
+
+SecAlert:AddToggle("webhookStockAlert", {
+    Title       = "Kirim Alert ke Discord",
+    Description = "Kirim peringatan stok tipis ke Webhook Discord",
+    Default     = false,
+    Callback    = function(val) cfg.webhookEnabled = val end
 })
 
 local function stockLabel(qty, threshold)
@@ -903,23 +905,19 @@ end
 local function updateDashboard(snap)
     if not snap then return end
 
-    pcall(function() LabelDay:SetText("📅 Hari: " .. tostring(snap.day or "-")) end)
-    pcall(function()
-        local m = snap.money or 0
-        local formatted = "$" .. tostring(m):reverse():gsub("(%d%d%d)", "%1."):reverse():gsub("^%.", "")
-        LabelMoney:SetText("💵 Saldo: " .. formatted)
-    end)
+    local dayStr = tostring(snap.day or "-")
+    local m = snap.money or 0
+    local moneyStr = "$" .. tostring(m):reverse():gsub("(%d%d%d)", "%1."):reverse():gsub("^%.", "")
+    local repStr = string.format("%.2f", snap.rep or 0)
 
-    pcall(function()
-        local rep = snap.rep or 0
-        LabelRating:SetText(string.format("⭐ Rating: %.2f", rep))
-    end)
+    local custStr, servStr, angryStr = "-", "-", "-"
+    local incStr, billStr, foodStr, tipStr = "-", "-", "-", "-"
 
     if snap.today then
         local t = snap.today
-        pcall(function() LabelCustomers:SetText("👥 Pelanggan: " .. tostring(t.customers or 0)) end)
-        pcall(function() LabelServed:SetText("✅ Served: " .. tostring(t.served or 0)) end)
-        pcall(function() LabelAngry:SetText("😠 Kecewa: " .. tostring(t.angry or 0)) end)
+        custStr  = tostring(t.customers or 0)
+        servStr  = tostring(t.served or 0)
+        angryStr = tostring(t.angry or 0)
 
         if t.income then
             local billing = t.income.billing or 0
@@ -932,207 +930,256 @@ local function updateDashboard(snap)
                 elseif n >= 1000 then return string.format("$%.0fK", n/1000)
                 else return "$"..n end
             end
-            pcall(function() LabelIncome:SetText("📈 Income: " .. fmt(total)) end)
-            pcall(function() LabelBilling:SetText("  └ Billing: " .. fmt(billing)) end)
-            pcall(function() LabelFood:SetText("  └ Makanan: " .. fmt(food)) end)
-            pcall(function() LabelTip:SetText("  └ Tips: " .. fmt(tip)) end)
+            incStr  = fmt(total)
+            billStr = fmt(billing)
+            foodStr = fmt(food)
+            tipStr  = fmt(tip)
         end
     end
 
+    local sesCount, qCount = 0, 0
+    if snap.sessions then for _ in pairs(snap.sessions) do sesCount = sesCount + 1 end end
+    if snap.queue then for _ in pairs(snap.queue) do qCount = qCount + 1 end end
+
     pcall(function()
-        local sesCount = 0
-        if snap.sessions then
-            for _ in pairs(snap.sessions) do sesCount = sesCount + 1 end
-        end
-        LabelSessions:SetText("🖥️ Sesi Aktif: " .. sesCount)
-    end)
-    pcall(function()
-        local qCount = 0
-        if snap.queue then
-            for _ in pairs(snap.queue) do qCount = qCount + 1 end
-        end
-        LabelQueue:SetText("🕐 Antrean: " .. qCount)
+        ParaStats:SetDesc(string.format(
+            "📅 Hari: %s  |  💵 Saldo: %s  |  ⭐ Rating: %s\n👥 Pelanggan: %s  |  ✅ Served: %s  |  😠 Kecewa: %s\n📈 Income: %s (Billing: %s | Makanan: %s | Tips: %s)\n🖥️ Sesi Aktif: %d  |  🕐 Antrean: %d",
+            dayStr, moneyStr, repStr,
+            custStr, servStr, angryStr,
+            incStr, billStr, foodStr, tipStr,
+            sesCount, qCount
+        ))
     end)
 
     if snap.stock then
         local s = snap.stock
         local thr = cfg.stockThreshold
-        pcall(function() LabelStockSnack:SetText("🍟 Snack" .. stockLabel(s.snack or 0, thr)) end)
-        pcall(function() LabelStockTea:SetText("🧊 Es Teh" .. stockLabel(s.tea or 0, thr)) end)
-        pcall(function() LabelStockSoda:SetText("🥤 Soda" .. stockLabel(s.soda or 0, thr)) end)
-        pcall(function() LabelStockCoffee:SetText("☕ Kopi" .. stockLabel(s.coffee or 0, thr)) end)
-        pcall(function() LabelStockNoodle:SetText("🍜 Mie/Nasi" .. stockLabel(s.noodle or 0, thr)) end)
+        pcall(function()
+            ParaStock:SetDesc(string.format(
+                "🍟 Snack%s\n🧊 Es Teh%s\n🥤 Soda%s\n☕ Kopi%s\n🍜 Mie/Nasi%s",
+                stockLabel(s.snack or 0, thr),
+                stockLabel(s.tea or 0, thr),
+                stockLabel(s.soda or 0, thr),
+                stockLabel(s.coffee or 0, thr),
+                stockLabel(s.noodle or 0, thr)
+            ))
+        end)
         checkStockAlert(s)
     end
 end
 
--- ══ TAB 2: TOKO KOTA ═════════════════════════════════════════════
-local CafeTab  = Window:AddTab('Toko Kota')
-local TimerBox = CafeTab:AddLeftGroupbox('⏰ Jadwal Restock')
-local RestockTimerLabel = TimerBox:AddLabel('Stok baru dalam: Buka 1x toko dulu')
-TimerBox:AddDivider()
-TimerBox:AddLabel('Semua toko kota reset bersamaan saat timer 00:00', true)
-TimerBox:AddDivider()
-TimerBox:AddButton({
-    Text='🚀 TP ke Toko Terpilih',
-    Func=function()
+-- ══ TAB 3: TOKO KOTA ═════════════════════════════════════════════
+local ParaTimer = Tabs.TokoKota:AddParagraph({
+    Title   = "⏰ Jadwal Restock Toko Kota",
+    Content = "Stok baru dalam: Buka 1x toko dulu (reset bersamaan saat 00:00)"
+})
+
+Tabs.TokoKota:AddButton({
+    Title       = "🚀 Teleport ke Toko Terpilih",
+    Description = "Langsung pindah ke toko yang dipilih di bawah",
+    Callback    = function()
         local target = STORE_LOCATIONS[selectedStoreId]
         if target then safeTeleport(target) end
-    end,
-    Tooltip='Teleport ke toko yang dipilih di kanan',
+    end
 })
 
-local EsTehBox = CafeTab:AddLeftGroupbox('🥤 Es Teh Segar (Buff +60%)')
-local EsTehStatusLabel = EsTehBox:AddLabel('Status Buff: Mengecek...')
-EsTehBox:AddDropdown('esTehChoiceDropdown', {
-    Values={'🧊 Es Teh Manis ($5.000 • 4 Jam)','🍊 Es Jeruk ($7.000 • 5.5 Jam)'},
-    Default=2, Multi=false, Text='Pilih Menu:',
-    Callback=function(val) cfg.esTehChoice = ESTEH_DISPLAY_TO_ID[val] or "es_jeruk" end,
-})
-EsTehBox:AddToggle('autoEsTehEnabled', {
-    Text='Auto Beli Saat Buff Habis', Default=false,
-    Callback=function(val) cfg.autoEsTehEnabled = val end,
-})
-EsTehBox:AddButton({
-    Text='🥤 Beli Sekarang (1x)',
-    Func=function() task.spawn(buyEsTeh, cfg.esTehChoice, false) end,
+local SecEsTeh = Tabs.TokoKota:AddSection("🥤 Es Teh Segar (Buff +60%)")
+
+local ParaEsTeh = SecEsTeh:AddParagraph({
+    Title   = "Status Buff",
+    Content = "Mengecek status buff..."
 })
 
-local ManualShopBox = CafeTab:AddRightGroupbox('🛍️ Beli Manual (Semua Toko)')
-ManualShopBox:AddDropdown('selectedManualStore', {
-    Values={'💻 Toko Komputer Jaya','🪑 Mebel Jati','🌿 Galeri Dekorasi','☕ Toko Alat Kafe','🛒 Minimart 24'},
-    Default=1, Multi=false, Text='Pilih Toko:',
-    Callback=function(val)
+SecEsTeh:AddDropdown("esTehChoiceDropdown", {
+    Title    = "Pilih Menu Minuman",
+    Values   = { "🧊 Es Teh Manis ($5.000 • 4 Jam)", "🍊 Es Jeruk ($7.000 • 5.5 Jam)" },
+    Multi    = false,
+    Default  = 2,
+    Callback = function(val)
+        cfg.esTehChoice = ESTEH_DISPLAY_TO_ID[val] or "es_jeruk"
+    end
+})
+
+SecEsTeh:AddToggle("autoEsTehEnabled", {
+    Title    = "Auto Beli Saat Buff Habis",
+    Default  = false,
+    Callback = function(val) cfg.autoEsTehEnabled = val end
+})
+
+SecEsTeh:AddButton({
+    Title    = "🥤 Beli Sekarang (1x)",
+    Callback = function() task.spawn(buyEsTeh, cfg.esTehChoice, false) end
+})
+
+local SecManualShop = Tabs.TokoKota:AddSection("🛍️ Beli Manual (Semua Toko)")
+
+SecManualShop:AddDropdown("selectedManualStore", {
+    Title    = "Pilih Toko",
+    Values   = { "💻 Toko Komputer Jaya", "🪑 Mebel Jati", "🌿 Galeri Dekorasi", "☕ Toko Alat Kafe", "🛒 Minimart 24" },
+    Multi    = false,
+    Default  = 1,
+    Callback = function(val)
         selectedStoreId = STORE_DISPLAY_TO_ID[val] or "computer"
         refreshManualStoreSlots()
-    end,
+    end
 })
-ManualShopBox:AddDivider()
 
 for i = 1, MAX_SLOTS do
-    StoreSlotButtons[i] = ManualShopBox:AddButton({
-        Text=('Slot %d: Menunggu data...'):format(i),
-        Func=function()
+    StoreSlotButtons[i] = SecManualShop:AddButton({
+        Title       = "Slot " .. i,
+        Description = "Menunggu data toko...",
+        Callback    = function()
             local slotData = activeSlotItems[i]
             if slotData and slotData.id then
                 if slotData.qty and slotData.qty <= 0 then
-                    Library:Notify("❌ Stok "..slotData.name.." sudah HABIS!", 2)
+                    notify("❌ Stok Habis", slotData.name .. " sudah habis!", 2)
                 else
                     task.spawn(buySingleItemManual, selectedStoreId, slotData.id, slotData.priceStr or "")
                 end
             else
-                Library:Notify("Buka UI tokonya dulu / tunggu reset.", 2.5)
+                notify("Info Toko", "Buka UI tokonya dulu / tunggu reset.", 2.5)
             end
-        end,
-        Tooltip='Klik untuk TP & beli item ini 1x',
+        end
     })
-    if i > 4 then setButtonState(StoreSlotButtons[i], "", false)
-    else setButtonState(StoreSlotButtons[i], ('Slot %d: Menunggu data...'):format(i), true) end
+    if i > 4 then
+        setFluentButtonState(StoreSlotButtons[i], "", "", false)
+    end
 end
 
--- ══ TAB 3: AUTO OPEN & WARNET ════════════════════════════════════
-local OpenTab = Window:AddTab('Auto Farm')
-local OpenBox = OpenTab:AddLeftGroupbox('🏪 Warnet')
+-- ══ TAB 4: AUTO FARM ═════════════════════════════════════════════
+local SecWarnet = Tabs.AutoFarm:AddSection("🏪 Otomatisasi Warnet")
 
-OpenBox:AddToggle('autoOpenEnabled', {
-    Text='Auto Buka Warnet', Default=false,
-    Tooltip='Otomatis buka warnet kalau tiba-tiba TUTUP',
-    Callback=function(val)
+SecWarnet:AddToggle("autoOpenEnabled", {
+    Title       = "Auto Buka Warnet",
+    Description = "Otomatis buka warnet kembali jika status berubah TUTUP",
+    Default     = false,
+    Callback    = function(val)
         cfg.autoOpenEnabled = val
         lastStatus = nil
         if val and getStatus() == "TUTUP" then
             task.delay(1, function() fireAction("setOpen", {open=true}) end)
         end
-    end,
-})
-OpenBox:AddToggle('autoDayEnabled', {
-    Text='Auto Lanjut Hari', Default=false,
-    Tooltip='Otomatis pencet "Lanjut ke Hari X" saat popup muncul',
-    Callback=function(val) cfg.autoDayEnabled = val end,
-})
-OpenBox:AddToggle('autoPlaceEnabled', {
-    Text='Auto Tempatkan Pelanggan', Default=false,
-    Callback=function(val) cfg.autoPlaceEnabled = val end,
-})
-OpenBox:AddToggle('autoCleanEnabled', {
-    Text='Auto Bersih Sampah', Default=false,
-    Callback=function(val) cfg.autoCleanEnabled = val end,
-})
-OpenBox:AddToggle('autoServeEnabled', {
-    Text='Auto Layani Semua Menu', Default=false,
-    Tooltip='Otomatis masak & antar: Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda',
-    Callback=function(val) cfg.autoServeEnabled = val end,
+    end
 })
 
-local DelayBox = OpenTab:AddLeftGroupbox('⏱️ Delay')
-DelayBox:AddSlider('reopenDelay', {
-    Text='Reopen Delay (detik)', Min=1, Max=15, Default=6, Rounding=0,
-    Callback=function(val) cfg.reopenDelay = val end,
-})
-DelayBox:AddSlider('continueDelay', {
-    Text='Continue Delay (detik)', Min=1, Max=10, Default=2, Rounding=0,
-    Callback=function(val) cfg.continueDelay = val end,
+SecWarnet:AddToggle("autoDayEnabled", {
+    Title       = "Auto Lanjut Hari",
+    Description = "Otomatis klik 'Lanjut ke Hari X' saat laporan harian muncul",
+    Default     = false,
+    Callback    = function(val) cfg.autoDayEnabled = val end
 })
 
-local PlayerBox = OpenTab:AddRightGroupbox('🏃 Player & AFK')
-PlayerBox:AddToggle('antiAfkEnabled', {
-    Text='🛡️ Anti AFK', Default=true,
-    Callback=function(val) cfg.antiAfkEnabled = val end,
+SecWarnet:AddToggle("autoPlaceEnabled", {
+    Title       = "Auto Tempatkan Pelanggan",
+    Description = "Otomatis arahkan antrean pelanggan ke PC kosong",
+    Default     = false,
+    Callback    = function(val) cfg.autoPlaceEnabled = val end
 })
-PlayerBox:AddDivider()
-PlayerBox:AddToggle('walkSpeedEnabled', {
-    Text='Custom WalkSpeed', Default=false,
-    Callback=function(val)
+
+SecWarnet:AddToggle("autoCleanEnabled", {
+    Title       = "Auto Bersih Sampah",
+    Default     = false,
+    Callback    = function(val) cfg.autoCleanEnabled = val end
+})
+
+SecWarnet:AddToggle("autoServeEnabled", {
+    Title       = "Auto Layani Semua Menu",
+    Description = "Otomatis masak & antar Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda",
+    Default     = false,
+    Callback    = function(val) cfg.autoServeEnabled = val end
+})
+
+local SecDelay = Tabs.AutoFarm:AddSection("⏱️ Pengaturan Delay")
+
+SecDelay:AddSlider("reopenDelay", {
+    Title    = "Reopen Delay (detik)",
+    Default  = 6,
+    Min      = 1,
+    Max      = 15,
+    Rounding = 0,
+    Callback = function(val) cfg.reopenDelay = val end
+})
+
+SecDelay:AddSlider("continueDelay", {
+    Title    = "Continue Day Delay (detik)",
+    Default  = 2,
+    Min      = 1,
+    Max      = 10,
+    Rounding = 0,
+    Callback = function(val) cfg.continueDelay = val end
+})
+
+local SecPlayer = Tabs.AutoFarm:AddSection("🏃 Player & Anti AFK")
+
+SecPlayer:AddToggle("antiAfkEnabled", {
+    Title    = "🛡️ Anti AFK",
+    Default  = true,
+    Callback = function(val) cfg.antiAfkEnabled = val end
+})
+
+SecPlayer:AddToggle("walkSpeedEnabled", {
+    Title    = "Custom WalkSpeed",
+    Default  = false,
+    Callback = function(val)
         cfg.walkSpeedEnabled = val
         local hum = getHumanoid()
         if hum then hum.WalkSpeed = val and cfg.walkSpeedValue or 16 end
-    end,
+    end
 })
-PlayerBox:AddSlider('walkSpeedValue', {
-    Text='WalkSpeed', Min=16, Max=150, Default=32, Rounding=0,
-    Callback=function(val)
+
+SecPlayer:AddSlider("walkSpeedValue", {
+    Title    = "Kecepatan Lari (WalkSpeed)",
+    Default  = 32,
+    Min      = 16,
+    Max      = 150,
+    Rounding = 0,
+    Callback = function(val)
         cfg.walkSpeedValue = val
         if cfg.walkSpeedEnabled then
             local hum = getHumanoid()
             if hum then hum.WalkSpeed = val end
         end
-    end,
+    end
 })
 
--- ══ TAB 4: SETTINGS ══════════════════════════════════════════════
-local SettingsTab = Window:AddTab('Settings')
-local SettingsBox = SettingsTab:AddLeftGroupbox('🎨 Theme')
-ThemeManager:SetLibrary(Library)
-ThemeManager:SetFolder('WarnetopiaHub')
-ThemeManager:ApplyToGroupbox(SettingsBox)
+-- ══ TAB 5: SETTINGS ══════════════════════════════════════════════
+local SecWebhook = Tabs.Settings:AddSection("🔔 Discord Webhook")
 
-SaveManager:SetLibrary(Library)
-SaveManager:SetFolder('WarnetopiaHub/configs')
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({'MenuKeybind','selectedManualStore'})
-SaveManager:BuildConfigSection(SettingsTab)
+SecWebhook:AddToggle("webhookEnabled", {
+    Title    = "Kirim Notif Auto Buy",
+    Default  = false,
+    Callback = function(val) cfg.webhookEnabled = val end
+})
 
-local WebhookBox = SettingsTab:AddRightGroupbox('🔔 Discord Webhook')
-WebhookBox:AddToggle('webhookEnabled', {
-    Text='Kirim Notif Auto Buy', Default=false,
-    Callback=function(val) cfg.webhookEnabled = val end,
+SecWebhook:AddInput("webhookUrlInput", {
+    Title       = "Webhook URL",
+    Default     = "",
+    Placeholder = "https://discord.com/api/webhooks/...",
+    Numeric     = false,
+    Finished    = false,
+    Callback    = function(val) cfg.webhookUrl = val end
 })
-WebhookBox:AddInput('webhookUrlInput', {
-    Default='', Numeric=false, Finished=false,
-    Text='Webhook URL', Placeholder='https://discord.com/api/webhooks/...',
-    Callback=function(val) cfg.webhookUrl = val end,
-})
-WebhookBox:AddButton({
-    Text='📨 Test Kirim Webhook',
-    Func=function()
+
+SecWebhook:AddButton({
+    Title    = "📨 Test Kirim Webhook",
+    Callback = function()
         task.spawn(function()
             local ok, msg = sendWebhook("✅ Webhook Terhubung!", "Warnetopia Hub siap kirim notif.", 5763719)
-            Library:Notify((ok and "✅ " or "❌ ")..msg, 3)
+            notify(ok and "✅ Berhasil" or "❌ Gagal", msg, 3)
         end)
-    end,
+    end
 })
 
-SaveManager:LoadAutoloadConfig()
+-- ─── INTERFACE & SAVE MANAGER (FLUENT) ────────────────────────────
+InterfaceManager:SetLibrary(Fluent)
+InterfaceManager:SetFolder("WarnetopiaHub_Fluent")
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+
+SaveManager:SetLibrary(Fluent)
+SaveManager:SetFolder("WarnetopiaHub_Fluent/configs")
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ "selectedManualStore" })
+SaveManager:BuildConfigSection(Tabs.Settings)
 
 -- ─── SYNC DARI GAME UI ────────────────────────────────────────────
 local function resolveItemByDisplayName(rawName)
@@ -1422,9 +1469,9 @@ RunService.Heartbeat:Connect(function(dt)
         esTehTimer = 0
         local ok, buffTxt = pcall(getFreshBuffText)
         if ok and buffTxt then
-            EsTehStatusLabel:SetText("⚡ Aktif: " .. buffTxt)
+            pcall(function() ParaEsTeh:SetDesc("⚡ Aktif: " .. buffTxt) end)
         else
-            EsTehStatusLabel:SetText("💤 Status Buff: Tidak aktif / Habis")
+            pcall(function() ParaEsTeh:SetDesc("💤 Status Buff: Tidak aktif / Habis") end)
             if cfg.autoEsTehEnabled and not isBuying and not isCleaning and not isServing
                 and (os.clock() - lastEsTehCooldown >= 6) then
                 lastEsTehCooldown = os.clock()
@@ -1440,10 +1487,10 @@ RunService.Heartbeat:Connect(function(dt)
         if restockEndClock then
             local rem = restockEndClock - os.clock()
             if rem > 0 then
-                RestockTimerLabel:SetText("⏰ Stok baru dalam: " .. formatTime(rem))
+                pcall(function() ParaTimer:SetDesc("Stok baru dalam: " .. formatTime(rem)) end)
             else
                 table.clear(storeOrderedUI)
-                RestockTimerLabel:SetText("⏰ Sedang Restock (00:00)...")
+                pcall(function() ParaTimer:SetDesc("Sedang Restock (00:00)...") end)
             end
         end
     end
@@ -1504,306 +1551,15 @@ RunService.Heartbeat:Connect(function(dt)
     lastStatus = status
 end)
 
+Window:SelectTab(1)
 SaveManager:LoadAutoloadConfig()
 
-Library:SetWatermark('Warnetopia Hub 🖤 | by Realx13')
-Library.Toggled = true
-
--- ─── MOBILE TOGGLE, UNIVERSAL SCROLL, DRAG & RESIZE SUPPORT ─────
-if UserInputService.TouchEnabled then
+-- ─── TOMBOL MELAYANG MOBILE (BUKA / TUTUP FLUENT) ─────────────────
+if isMobile then
     local pg = LocalPlayer:WaitForChild("PlayerGui")
     local existing = pg:FindFirstChild("MobileToggle")
     if existing then existing:Destroy() end
 
-    local function findHubScreenGui()
-        local roots = { pg }
-        pcall(function() table.insert(roots, game:GetService("CoreGui")) end)
-        if gethui then
-            pcall(function() table.insert(roots, gethui()) end)
-        end
-
-        for _, root in ipairs(roots) do
-            for _, gui in ipairs(root:GetChildren()) do
-                if gui:IsA("ScreenGui") and gui.Name ~= "WarnetopiaUI" and gui.Name ~= "MobileToggle" then
-                    for _, desc in ipairs(gui:GetDescendants()) do
-                        if desc:IsA("TextLabel") and desc.Text == "Auto Buy Rare ON/OFF" then
-                            return gui
-                        end
-                    end
-                end
-            end
-        end
-        return nil
-    end
-
-    local hubGui = findHubScreenGui()
-    local mainFrame = nil
-
-    -- Buat semua kolom grupbox di tiap tab bisa di-scroll atas-bawah
-    local function makeTabColumnsScrollable(rootFrame)
-        for _, obj in ipairs(rootFrame:GetDescendants()) do
-            if obj:IsA("UIListLayout") and obj.Parent and obj.Parent:IsA("Frame") then
-                local col = obj.Parent
-                if obj.FillDirection == Enum.FillDirection.Vertical and col.AbsoluteSize.X >= 120 and col.AbsoluteSize.Y >= 120 then
-                    if not col.Parent:IsA("ScrollingFrame") then
-                        local scroll = Instance.new("ScrollingFrame")
-                        scroll.Name                   = col.Name .. "_Scroll"
-                        scroll.Size                   = col.Size
-                        scroll.Position               = col.Position
-                        scroll.AnchorPoint            = col.AnchorPoint
-                        scroll.BackgroundTransparency = 1
-                        scroll.BorderSizePixel        = 0
-                        scroll.ScrollBarThickness     = 5
-                        scroll.ScrollBarImageColor3   = Color3.fromRGB(120, 90, 200)
-                        scroll.ScrollingDirection     = Enum.ScrollingDirection.Y
-                        scroll.CanvasSize             = UDim2.new(0, 0, 0, obj.AbsoluteContentSize.Y + 40)
-                        scroll.ZIndex                 = col.ZIndex
-                        scroll.Visible                = col.Visible
-                        scroll.Parent                 = col.Parent
-
-                        col:GetPropertyChangedSignal("Visible"):Connect(function()
-                            scroll.Visible = col.Visible
-                        end)
-
-                        for _, child in ipairs(col:GetChildren()) do
-                            child.Parent = scroll
-                        end
-
-                        obj:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                            scroll.CanvasSize = UDim2.new(0, 0, 0, obj.AbsoluteContentSize.Y + 40)
-                        end)
-                        col:Destroy()
-                    end
-                end
-            end
-        end
-    end
-
-    if hubGui then
-        hubGui.DisplayOrder = 500
-        local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(800, 400)
-        -- Otomatis sesuaikan ukuran jendela supaya muat di layar HP siapa pun
-        local fitW = math.clamp(math.floor(vp.X * 0.85), 340, 540)
-        local fitH = math.clamp(math.floor(vp.Y * 0.80), 230, 360)
-
-        for _, frame in ipairs(hubGui:GetChildren()) do
-            if frame:IsA("Frame") and frame.AbsoluteSize.X > 300 then
-                mainFrame = frame
-                frame.Size = UDim2.fromOffset(fitW, fitH)
-                frame.Position = UDim2.new(0.5, -math.floor(fitW / 2), 0.5, -math.floor(fitH / 2))
-                frame.ClipsDescendants = true
-                break
-            end
-        end
-
-        task.defer(function()
-            if mainFrame then
-                makeTabColumnsScrollable(mainFrame)
-
-                -- 1. Drag Header Atas untuk memindahkan posisi GUI
-                local dragHeader = Instance.new("TextButton")
-                dragHeader.Name                   = "MobileDragHeader"
-                dragHeader.Size                   = UDim2.new(1, 0, 0, 28)
-                dragHeader.Position               = UDim2.new(0, 0, 0, 0)
-                dragHeader.BackgroundTransparency = 1
-                dragHeader.Text                   = ""
-                dragHeader.ZIndex                 = 50
-                dragHeader.Parent                 = mainFrame
-
-                local draggingWin = false
-                local dragStartPos, frameStartPos
-
-                dragHeader.InputBegan:Connect(function(inp)
-                    if inp.UserInputType == Enum.UserInputType.Touch then
-                        draggingWin   = true
-                        dragStartPos  = inp.Position
-                        frameStartPos = mainFrame.Position
-                    end
-                end)
-                dragHeader.InputChanged:Connect(function(inp)
-                    if draggingWin and inp.UserInputType == Enum.UserInputType.Touch then
-                        local delta = inp.Position - dragStartPos
-                        mainFrame.Position = UDim2.new(
-                            frameStartPos.X.Scale, frameStartPos.X.Offset + delta.X,
-                            frameStartPos.Y.Scale, frameStartPos.Y.Offset + delta.Y
-                        )
-                    end
-                end)
-                dragHeader.InputEnded:Connect(function(inp)
-                    if inp.UserInputType == Enum.UserInputType.Touch then
-                        draggingWin = false
-                    end
-                end)
-
-                -- 2. Handle Pojok Kanan Bawah untuk mengubah ukuran (Resize) GUI
-                local resizeBtn = Instance.new("TextButton")
-                resizeBtn.Name                   = "MobileResizeHandle"
-                resizeBtn.Size                   = UDim2.fromOffset(28, 28)
-                resizeBtn.Position               = UDim2.new(1, -28, 1, -28)
-                resizeBtn.BackgroundColor3       = Color3.fromRGB(30, 30, 45)
-                resizeBtn.BackgroundTransparency = 0.15
-                resizeBtn.BorderSizePixel        = 0
-                resizeBtn.Text                   = "◢"
-                resizeBtn.TextColor3             = Color3.fromRGB(140, 110, 230)
-                resizeBtn.TextSize               = 16
-                resizeBtn.Font                   = Enum.Font.GothamBold
-                resizeBtn.ZIndex                 = 60
-                resizeBtn.Parent                 = mainFrame
-
-                local resizingWin = false
-                local resizeStartTouch, resizeStartSize
-
-                resizeBtn.InputBegan:Connect(function(inp)
-                    if inp.UserInputType == Enum.UserInputType.Touch then
-                        resizingWin      = true
-                        resizeStartTouch = inp.Position
-                        resizeStartSize  = mainFrame.AbsoluteSize
-                    end
-                end)
-                resizeBtn.InputChanged:Connect(function(inp)
-                    if resizingWin and inp.UserInputType == Enum.UserInputType.Touch then
-                        local delta = inp.Position - resizeStartTouch
-                        local curVp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(800, 400)
-                        local newW = math.clamp(resizeStartSize.X + delta.X, 320, curVp.X - 20)
-                        local newH = math.clamp(resizeStartSize.Y + delta.Y, 210, curVp.Y - 20)
-                        mainFrame.Size = UDim2.fromOffset(newW, newH)
-                    end
-                end)
-                resizeBtn.InputEnded:Connect(function(inp)
-                    if inp.UserInputType == Enum.UserInputType.Touch then
-                        resizingWin = false
-                    end
-                end)
-            end
-        end)
-    end
-
-    local function isObjTrulyVisible(obj)
-        if not obj or not obj:IsA("GuiObject") or not obj.Visible then return false end
-        local curr = obj.Parent
-        while curr and curr:IsA("GuiObject") do
-            if not curr.Visible then return false end
-            curr = curr.Parent
-        end
-        return true
-    end
-
-    -- Tutup semua popup dropdown / color picker yang terbuka
-    local function closeAllLinoriaPopups()
-        if not hubGui or not mainFrame then return end
-        for _, child in ipairs(hubGui:GetChildren()) do
-            if child ~= mainFrame and child:IsA("GuiObject") and child.Visible then
-                child.Visible = false
-            end
-        end
-        for _, desc in ipairs(mainFrame:GetDescendants()) do
-            if desc:IsA("GuiObject") and desc.Visible and desc.ZIndex >= 10
-            and desc.Name ~= "MobileDragHeader" and desc.Name ~= "MobileResizeHandle" then
-                if desc:FindFirstChildOfClass("ScrollingFrame") or desc:FindFirstChildOfClass("UIListLayout") then
-                    if desc.Parent == mainFrame or (desc.Parent and desc.Parent.ZIndex >= 5) then
-                        desc.Visible = false
-                    end
-                end
-            end
-        end
-    end
-
-    local function createFakeMouseInput(posVector, state)
-        return setmetatable({
-            UserInputType  = Enum.UserInputType.MouseButton1,
-            UserInputState = state or Enum.UserInputState.Begin,
-            Position       = Vector3.new(posVector.X, posVector.Y, 0),
-            Delta          = Vector3.zero,
-            KeyCode        = Enum.KeyCode.Unknown,
-        }, {
-            __index = function(_, k)
-                if k == "UserInputType" then return Enum.UserInputType.MouseButton1 end
-                if k == "Position" then return Vector3.new(posVector.X, posVector.Y, 0) end
-                return nil
-            end
-        })
-    end
-
-    local function dispatchTouchAsMouse(pos2D, isBegin)
-        if not hubGui or not hubGui.Enabled then return end
-        local fakeInp = createFakeMouseInput(
-            pos2D,
-            isBegin and Enum.UserInputState.Begin or Enum.UserInputState.End
-        )
-
-        local isClickingTabBar = false
-        if mainFrame then
-            local mPos = mainFrame.AbsolutePosition
-            local mSize = mainFrame.AbsoluteSize
-            if pos2D.X >= mPos.X and pos2D.X <= (mPos.X + mSize.X)
-            and pos2D.Y >= (mPos.Y + 25) and pos2D.Y <= (mPos.Y + 58) then
-                isClickingTabBar = true
-            end
-        end
-
-        if isBegin and isClickingTabBar then
-            closeAllLinoriaPopups()
-        end
-
-        for _, obj in ipairs(hubGui:GetDescendants()) do
-            if isObjTrulyVisible(obj) and obj.Name ~= "MobileDragHeader" and obj.Name ~= "MobileResizeHandle" then
-                local p = obj.AbsolutePosition
-                local s = obj.AbsoluteSize
-                if s.X > 0 and s.Y > 0
-                and pos2D.X >= p.X and pos2D.X <= (p.X + s.X)
-                and pos2D.Y >= p.Y and pos2D.Y <= (p.Y + s.Y) then
-                    if isBegin then
-                        if obj:IsA("TextBox") then
-                            pcall(function() obj:CaptureFocus() end)
-                        end
-                        if firesignal then
-                            pcall(function() firesignal(obj.InputBegan, fakeInp) end)
-                            if obj:IsA("GuiButton") then
-                                pcall(function() firesignal(obj.MouseButton1Down) end)
-                                pcall(function() firesignal(obj.MouseButton1Click) end)
-                                pcall(function() firesignal(obj.Activated) end)
-                            end
-                        end
-                    else
-                        if firesignal then
-                            pcall(function() firesignal(obj.InputEnded, fakeInp) end)
-                            if obj:IsA("GuiButton") then
-                                pcall(function() firesignal(obj.MouseButton1Up) end)
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    local touchStartPoint = Vector2.zero
-    local touchMovedFar   = false
-
-    UserInputService.TouchStarted:Connect(function(touch, _)
-        if not hubGui or not hubGui.Parent then hubGui = findHubScreenGui() end
-        touchStartPoint = Vector2.new(touch.Position.X, touch.Position.Y)
-        touchMovedFar   = false
-    end)
-
-    UserInputService.TouchMoved:Connect(function(touch, _)
-        local pos = Vector2.new(touch.Position.X, touch.Position.Y)
-        if (pos - touchStartPoint).Magnitude > 12 then
-            touchMovedFar = true
-        end
-    end)
-
-    UserInputService.TouchEnded:Connect(function(touch, _)
-        local pos = Vector2.new(touch.Position.X, touch.Position.Y)
-        if not touchMovedFar and (pos - touchStartPoint).Magnitude <= 12 then
-            dispatchTouchAsMouse(pos, true)
-            task.defer(function()
-                dispatchTouchAsMouse(pos, false)
-            end)
-        end
-    end)
-
-    -- Tombol Melayang Buka/Tutup GUI
     local MobileGui = Instance.new("ScreenGui")
     MobileGui.Name           = "MobileToggle"
     MobileGui.ResetOnSpawn   = false
@@ -1813,13 +1569,13 @@ if UserInputService.TouchEnabled then
 
     local Btn = Instance.new("TextButton")
     Btn.Name                   = "ToggleBtn"
-    Btn.Size                   = UDim2.fromOffset(52, 52)
-    Btn.Position               = UDim2.new(0, 8, 0.5, -26)
-    Btn.BackgroundColor3       = Color3.fromRGB(15, 15, 25)
+    Btn.Size                   = UDim2.fromOffset(48, 48)
+    Btn.Position               = UDim2.new(0, 8, 0.5, -24)
+    Btn.BackgroundColor3       = Color3.fromRGB(20, 20, 30)
     Btn.BackgroundTransparency = 0.1
     Btn.BorderSizePixel        = 0
     Btn.Text                   = "🖤"
-    Btn.TextSize               = 24
+    Btn.TextSize               = 22
     Btn.Font                   = Enum.Font.GothamBold
     Btn.ZIndex                 = 99999
     Btn.AutoButtonColor        = false
@@ -1827,28 +1583,13 @@ if UserInputService.TouchEnabled then
 
     Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 14)
     local stroke = Instance.new("UIStroke", Btn)
-    stroke.Color     = Color3.fromRGB(120, 90, 200)
-    stroke.Thickness = 2.5
+    stroke.Color     = Color3.fromRGB(110, 90, 210)
+    stroke.Thickness = 2
 
-    local guiVisible  = true
     local isDragging  = false
-    local startTouch  = Vector2.new()
+    local startTouch  = Vector2.zero
     local startBtnPos = UDim2.new()
     local touchActive = false
-
-    local function toggleGui()
-        guiVisible = not guiVisible
-        Btn.Text = guiVisible and "🖤" or "👁"
-
-        if not hubGui or not hubGui.Parent then
-            hubGui = findHubScreenGui()
-        end
-
-        if hubGui then
-            hubGui.Enabled = guiVisible
-        end
-        pcall(function() Library.Toggled = guiVisible end)
-    end
 
     Btn.InputBegan:Connect(function(inp)
         if inp.UserInputType ~= Enum.UserInputType.Touch then return end
@@ -1860,7 +1601,7 @@ if UserInputService.TouchEnabled then
             if not touchActive then return end
             local cur = Vector2.new(inp.Position.X, inp.Position.Y)
             local delta = cur - startTouch
-            if math.sqrt(delta.X^2 + delta.Y^2) > 10 then
+            if delta.Magnitude > 10 then
                 isDragging = true
                 Btn.Position = UDim2.new(
                     startBtnPos.X.Scale, startBtnPos.X.Offset + delta.X,
@@ -1874,12 +1615,11 @@ if UserInputService.TouchEnabled then
         if inp.UserInputType ~= Enum.UserInputType.Touch then return end
         touchActive = false
         if not isDragging then
-            toggleGui()
+            pcall(function() Window:Minimize() end)
         end
         isDragging = false
     end)
-
-    print("[Hub] 📱 Mobile Auto-Fit, Scroll, Drag & Resize aktif!")
 end
 
-print('[Hub] 🖤 Warnetopia Hub loaded! RightShift = hide/show')
+notify("Warnetopia Hub 🖤", "Fluent UI berhasil dimuat! (RightShift / tombol 🖤 untuk hide/show)", 4)
+print("[Hub] 🖤 Warnetopia Hub (Fluent UI) loaded!")
