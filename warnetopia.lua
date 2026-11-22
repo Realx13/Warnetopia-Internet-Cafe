@@ -1,6 +1,20 @@
 --[[
-    Warnetopia Hub — Full Script (Mobile Fixed)
+    Warnetopia Hub — Full Script (PC & Mobile Ready)
     UI: LinoriaLib
+    Features:
+    ✅ Auto Buy Rare Items (Komputer, Mebel, Dekorasi)
+    ✅ Auto Restock Minimart
+    ✅ Manual Buy Semua Toko
+    ✅ Auto Buka Warnet
+    ✅ Auto Lanjut Hari (Multi-root UI + VirtualInputManager Click)
+    ✅ Auto Tempatkan Pelanggan
+    ✅ Auto Bersih Sampah
+    ✅ Auto Layani Semua Menu (Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda)
+    ✅ Auto Buff Es Teh Segar
+    ✅ Dashboard Real-Time + Low Stock Alert
+    ✅ WalkSpeed Custom & Anti AFK
+    ✅ Discord Webhook & Save/Load Config
+    ✅ Mobile Auto-Fit Screen, Scrollable Columns, Drag & Resize Window, Auto-Close Popups
     Credit: Realx13
 --]]
 
@@ -80,6 +94,7 @@ local ESTEH_ID_TO_LABEL = {
     es_jeruk = "Es Jeruk ($7.000)",
 }
 
+-- Waktu masak per menu (detik)
 local COOK_DURATION = {
     ["Buat Mie Telur"]   = 2.5,
     ["Buat Nasi Goreng"] = 2.5,
@@ -89,6 +104,7 @@ local COOK_DURATION = {
     ["Buat Soda"]        = 0.8,
 }
 
+-- Menu masak: foodKey → { cook, station, switchNeeded }
 local FOOD_MAP = {
     ["mie telur"]   = { cook = "Buat Mie Telur",  station = "stove",          switchNeeded = false },
     ["nasi goreng"] = { cook = "Buat Nasi Goreng", station = "stove",          switchNeeded = true  },
@@ -1493,13 +1509,12 @@ SaveManager:LoadAutoloadConfig()
 Library:SetWatermark('Warnetopia Hub 🖤 | by Realx13')
 Library.Toggled = true
 
--- ─── MOBILE TOGGLE, SCROLL, DRAG & RESIZE SUPPORT ───────────────
+-- ─── MOBILE TOGGLE, UNIVERSAL SCROLL, DRAG & RESIZE SUPPORT ─────
 if UserInputService.TouchEnabled then
     local pg = LocalPlayer:WaitForChild("PlayerGui")
     local existing = pg:FindFirstChild("MobileToggle")
     if existing then existing:Destroy() end
 
-    -- Cari ScreenGui yang benar-benar milik menu Warnetopia Hub
     local function findHubScreenGui()
         local roots = { pg }
         pcall(function() table.insert(roots, game:GetService("CoreGui")) end)
@@ -1524,13 +1539,12 @@ if UserInputService.TouchEnabled then
     local hubGui = findHubScreenGui()
     local mainFrame = nil
 
-    -- Ubah setiap kolom kiri/kanan di dalam halaman tab menjadi ScrollingFrame
+    -- Buat semua kolom grupbox di tiap tab bisa di-scroll atas-bawah
     local function makeTabColumnsScrollable(rootFrame)
         for _, obj in ipairs(rootFrame:GetDescendants()) do
             if obj:IsA("UIListLayout") and obj.Parent and obj.Parent:IsA("Frame") then
                 local col = obj.Parent
-                -- Pastikan ini kolom grupbox (bukan bar tab horizontal)
-                if obj.FillDirection == Enum.FillDirection.Vertical and col.AbsoluteSize.X >= 140 and col.AbsoluteSize.Y >= 150 then
+                if obj.FillDirection == Enum.FillDirection.Vertical and col.AbsoluteSize.X >= 120 and col.AbsoluteSize.Y >= 120 then
                     if not col.Parent:IsA("ScrollingFrame") then
                         local scroll = Instance.new("ScrollingFrame")
                         scroll.Name                   = col.Name .. "_Scroll"
@@ -1539,15 +1553,14 @@ if UserInputService.TouchEnabled then
                         scroll.AnchorPoint            = col.AnchorPoint
                         scroll.BackgroundTransparency = 1
                         scroll.BorderSizePixel        = 0
-                        scroll.ScrollBarThickness     = 4
+                        scroll.ScrollBarThickness     = 5
                         scroll.ScrollBarImageColor3   = Color3.fromRGB(120, 90, 200)
                         scroll.ScrollingDirection     = Enum.ScrollingDirection.Y
-                        scroll.CanvasSize             = UDim2.new(0, 0, 0, obj.AbsoluteContentSize.Y + 30)
+                        scroll.CanvasSize             = UDim2.new(0, 0, 0, obj.AbsoluteContentSize.Y + 40)
                         scroll.ZIndex                 = col.ZIndex
                         scroll.Visible                = col.Visible
                         scroll.Parent                 = col.Parent
 
-                        -- Sinkronkan visibilitas jika induknya berubah
                         col:GetPropertyChangedSignal("Visible"):Connect(function()
                             scroll.Visible = col.Visible
                         end)
@@ -1557,7 +1570,7 @@ if UserInputService.TouchEnabled then
                         end
 
                         obj:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                            scroll.CanvasSize = UDim2.new(0, 0, 0, obj.AbsoluteContentSize.Y + 30)
+                            scroll.CanvasSize = UDim2.new(0, 0, 0, obj.AbsoluteContentSize.Y + 40)
                         end)
                         col:Destroy()
                     end
@@ -1568,11 +1581,16 @@ if UserInputService.TouchEnabled then
 
     if hubGui then
         hubGui.DisplayOrder = 500
+        local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(800, 400)
+        -- Otomatis sesuaikan ukuran jendela supaya muat di layar HP siapa pun
+        local fitW = math.clamp(math.floor(vp.X * 0.85), 340, 540)
+        local fitH = math.clamp(math.floor(vp.Y * 0.80), 230, 360)
+
         for _, frame in ipairs(hubGui:GetChildren()) do
-            if frame:IsA("Frame") and frame.AbsoluteSize.X > 400 then
+            if frame:IsA("Frame") and frame.AbsoluteSize.X > 300 then
                 mainFrame = frame
-                frame.Size = UDim2.fromOffset(500, 340)
-                frame.Position = UDim2.new(0.5, -250, 0.5, -170)
+                frame.Size = UDim2.fromOffset(fitW, fitH)
+                frame.Position = UDim2.new(0.5, -math.floor(fitW / 2), 0.5, -math.floor(fitH / 2))
                 frame.ClipsDescendants = true
                 break
             end
@@ -1620,10 +1638,10 @@ if UserInputService.TouchEnabled then
                 -- 2. Handle Pojok Kanan Bawah untuk mengubah ukuran (Resize) GUI
                 local resizeBtn = Instance.new("TextButton")
                 resizeBtn.Name                   = "MobileResizeHandle"
-                resizeBtn.Size                   = UDim2.fromOffset(26, 26)
-                resizeBtn.Position               = UDim2.new(1, -26, 1, -26)
+                resizeBtn.Size                   = UDim2.fromOffset(28, 28)
+                resizeBtn.Position               = UDim2.new(1, -28, 1, -28)
                 resizeBtn.BackgroundColor3       = Color3.fromRGB(30, 30, 45)
-                resizeBtn.BackgroundTransparency = 0.2
+                resizeBtn.BackgroundTransparency = 0.15
                 resizeBtn.BorderSizePixel        = 0
                 resizeBtn.Text                   = "◢"
                 resizeBtn.TextColor3             = Color3.fromRGB(140, 110, 230)
@@ -1645,8 +1663,9 @@ if UserInputService.TouchEnabled then
                 resizeBtn.InputChanged:Connect(function(inp)
                     if resizingWin and inp.UserInputType == Enum.UserInputType.Touch then
                         local delta = inp.Position - resizeStartTouch
-                        local newW = math.clamp(resizeStartSize.X + delta.X, 380, 820)
-                        local newH = math.clamp(resizeStartSize.Y + delta.Y, 240, 650)
+                        local curVp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(800, 400)
+                        local newW = math.clamp(resizeStartSize.X + delta.X, 320, curVp.X - 20)
+                        local newH = math.clamp(resizeStartSize.Y + delta.Y, 210, curVp.Y - 20)
                         mainFrame.Size = UDim2.fromOffset(newW, newH)
                     end
                 end)
@@ -1659,7 +1678,6 @@ if UserInputService.TouchEnabled then
         end)
     end
 
-    -- Cek visibilitas seluruh parent chain agar tab tersembunyi tidak ikut terklik
     local function isObjTrulyVisible(obj)
         if not obj or not obj:IsA("GuiObject") or not obj.Visible then return false end
         local curr = obj.Parent
@@ -1668,6 +1686,26 @@ if UserInputService.TouchEnabled then
             curr = curr.Parent
         end
         return true
+    end
+
+    -- Tutup semua popup dropdown / color picker yang terbuka
+    local function closeAllLinoriaPopups()
+        if not hubGui or not mainFrame then return end
+        for _, child in ipairs(hubGui:GetChildren()) do
+            if child ~= mainFrame and child:IsA("GuiObject") and child.Visible then
+                child.Visible = false
+            end
+        end
+        for _, desc in ipairs(mainFrame:GetDescendants()) do
+            if desc:IsA("GuiObject") and desc.Visible and desc.ZIndex >= 10
+            and desc.Name ~= "MobileDragHeader" and desc.Name ~= "MobileResizeHandle" then
+                if desc:FindFirstChildOfClass("ScrollingFrame") or desc:FindFirstChildOfClass("UIListLayout") then
+                    if desc.Parent == mainFrame or (desc.Parent and desc.Parent.ZIndex >= 5) then
+                        desc.Visible = false
+                    end
+                end
+            end
+        end
     end
 
     local function createFakeMouseInput(posVector, state)
@@ -1692,6 +1730,20 @@ if UserInputService.TouchEnabled then
             pos2D,
             isBegin and Enum.UserInputState.Begin or Enum.UserInputState.End
         )
+
+        local isClickingTabBar = false
+        if mainFrame then
+            local mPos = mainFrame.AbsolutePosition
+            local mSize = mainFrame.AbsoluteSize
+            if pos2D.X >= mPos.X and pos2D.X <= (mPos.X + mSize.X)
+            and pos2D.Y >= (mPos.Y + 25) and pos2D.Y <= (mPos.Y + 58) then
+                isClickingTabBar = true
+            end
+        end
+
+        if isBegin and isClickingTabBar then
+            closeAllLinoriaPopups()
+        end
 
         for _, obj in ipairs(hubGui:GetDescendants()) do
             if isObjTrulyVisible(obj) and obj.Name ~= "MobileDragHeader" and obj.Name ~= "MobileResizeHandle" then
@@ -1725,7 +1777,6 @@ if UserInputService.TouchEnabled then
         end
     end
 
-    -- Bedakan tap (klik) dengan swipe (scroll)
     local touchStartPoint = Vector2.zero
     local touchMovedFar   = false
 
@@ -1828,7 +1879,7 @@ if UserInputService.TouchEnabled then
         isDragging = false
     end)
 
-    print("[Hub] 📱 Mobile Scroll, Drag & Resize aktif!")
+    print("[Hub] 📱 Mobile Auto-Fit, Scroll, Drag & Resize aktif!")
 end
 
 print('[Hub] 🖤 Warnetopia Hub loaded! RightShift = hide/show')
