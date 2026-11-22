@@ -13,7 +13,7 @@
     ✅ Auto Buff Es Teh Segar
     ✅ Dashboard Real-Time + Low Stock Alert
     ✅ WalkSpeed Custom & Anti AFK
-    ✅ Discord Webhook & Save/Load Config
+    ✅ Discord Webhook & Save/Load Config (Synced with Fluent.Options)
     Credit: Realx13
 --]]
 
@@ -148,7 +148,7 @@ local cfg = {
     rarityLangka        = true,
     raritySangat        = true,
     reopenDelay         = 6,
-    continueDelay       = 1.5,
+    continueDelay       = 2,
 }
 
 -- ─── STATE ────────────────────────────────────────────────────────
@@ -804,7 +804,9 @@ SecAutoBuy:AddToggle("autoBuyEnabled", {
     Title       = "Auto Buy Rare ON/OFF",
     Description = "Otomatis teleport & beli item langka dari toko kota",
     Default     = false,
-    Callback    = function(val) cfg.autoBuyEnabled = val end
+    Callback    = function(val)
+        if type(val) == "boolean" then cfg.autoBuyEnabled = val end
+    end
 })
 
 SecAutoBuy:AddSlider("minTier", {
@@ -814,7 +816,9 @@ SecAutoBuy:AddSlider("minTier", {
     Min         = 1,
     Max         = 4,
     Rounding    = 0,
-    Callback    = function(val) cfg.minTier = val end
+    Callback    = function(val)
+        if type(val) == "number" then cfg.minTier = val end
+    end
 })
 
 local SecRarity = Tabs.AutoBuy:AddSection("✨ Rarity Filter")
@@ -822,13 +826,17 @@ local SecRarity = Tabs.AutoBuy:AddSection("✨ Rarity Filter")
 SecRarity:AddToggle("rarityLangka", {
     Title    = "Langka (★)",
     Default  = true,
-    Callback = function(val) cfg.rarityLangka = val end
+    Callback = function(val)
+        if type(val) == "boolean" then cfg.rarityLangka = val end
+    end
 })
 
 SecRarity:AddToggle("raritySangat", {
     Title    = "Sangat Langka (★★)",
     Default  = true,
-    Callback = function(val) cfg.raritySangat = val end
+    Callback = function(val)
+        if type(val) == "boolean" then cfg.raritySangat = val end
+    end
 })
 
 local SecToko = Tabs.AutoBuy:AddSection("🏪 Target Toko Rare")
@@ -836,19 +844,25 @@ local SecToko = Tabs.AutoBuy:AddSection("🏪 Target Toko Rare")
 SecToko:AddToggle("store_computer", {
     Title    = "💻 Toko Komputer Jaya",
     Default  = true,
-    Callback = function(val) cfg.store_computer = val end
+    Callback = function(val)
+        if type(val) == "boolean" then cfg.store_computer = val end
+    end
 })
 
 SecToko:AddToggle("store_furniture", {
     Title    = "🪑 Mebel Jati",
     Default  = true,
-    Callback = function(val) cfg.store_furniture = val end
+    Callback = function(val)
+        if type(val) == "boolean" then cfg.store_furniture = val end
+    end
 })
 
 SecToko:AddToggle("store_decor", {
     Title    = "🌿 Galeri Dekorasi",
     Default  = true,
-    Callback = function(val) cfg.store_decor = val end
+    Callback = function(val)
+        if type(val) == "boolean" then cfg.store_decor = val end
+    end
 })
 
 local SecMinimart = Tabs.AutoBuy:AddSection("🛒 Minimart 24")
@@ -857,7 +871,9 @@ SecMinimart:AddToggle("autoMinimartEnabled", {
     Title       = "Auto Restock Minimart",
     Description = "Borong otomatis semua stok bahan makanan di Minimart 24",
     Default     = false,
-    Callback    = function(val) cfg.autoMinimartEnabled = val end
+    Callback    = function(val)
+        if type(val) == "boolean" then cfg.autoMinimartEnabled = val end
+    end
 })
 
 -- ══ TAB 2: DASHBOARD ═════════════════════════════════════════════
@@ -877,7 +893,9 @@ SecAlert:AddToggle("stockAlertEnabled", {
     Title       = "Aktifkan Stock Alert",
     Description = "Munculkan notifikasi jika stok kafe di bawah batas",
     Default     = true,
-    Callback    = function(val) cfg.stockAlertEnabled = val end
+    Callback    = function(val)
+        if type(val) == "boolean" then cfg.stockAlertEnabled = val end
+    end
 })
 
 SecAlert:AddSlider("stockThreshold", {
@@ -886,14 +904,18 @@ SecAlert:AddSlider("stockThreshold", {
     Min         = 5,
     Max         = 50,
     Rounding    = 0,
-    Callback    = function(val) cfg.stockThreshold = val end
+    Callback    = function(val)
+        if type(val) == "number" then cfg.stockThreshold = val end
+    end
 })
 
 SecAlert:AddToggle("webhookStockAlert", {
     Title       = "Kirim Alert ke Discord",
     Description = "Kirim peringatan stok tipis ke Webhook Discord",
     Default     = false,
-    Callback    = function(val) cfg.webhookEnabled = val end
+    Callback    = function(val)
+        if type(val) == "boolean" then cfg.webhookEnabled = val end
+    end
 })
 
 local function stockLabel(qty, threshold)
@@ -1003,7 +1025,9 @@ SecEsTeh:AddDropdown("esTehChoiceDropdown", {
 SecEsTeh:AddToggle("autoEsTehEnabled", {
     Title    = "Auto Beli Saat Buff Habis",
     Default  = false,
-    Callback = function(val) cfg.autoEsTehEnabled = val end
+    Callback = function(val)
+        if type(val) == "boolean" then cfg.autoEsTehEnabled = val end
+    end
 })
 
 SecEsTeh:AddButton({
@@ -1054,10 +1078,12 @@ SecWarnet:AddToggle("autoOpenEnabled", {
     Description = "Otomatis buka warnet kembali jika status berubah TUTUP",
     Default     = false,
     Callback    = function(val)
-        cfg.autoOpenEnabled = val
-        lastStatus = nil
-        if val and getStatus() == "TUTUP" then
-            task.delay(1, function() fireAction("setOpen", {open=true}) end)
+        if type(val) == "boolean" then
+            cfg.autoOpenEnabled = val
+            lastStatus = nil
+            if val and getStatus() == "TUTUP" then
+                task.delay(1, function() fireAction("setOpen", {open=true}) end)
+            end
         end
     end
 })
@@ -1066,27 +1092,35 @@ SecWarnet:AddToggle("autoDayEnabled", {
     Title       = "Auto Lanjut Hari",
     Description = "Otomatis klik 'Lanjut ke Hari X' saat laporan harian muncul",
     Default     = false,
-    Callback    = function(val) cfg.autoDayEnabled = val end
+    Callback    = function(val)
+        if type(val) == "boolean" then cfg.autoDayEnabled = val end
+    end
 })
 
 SecWarnet:AddToggle("autoPlaceEnabled", {
     Title       = "Auto Tempatkan Pelanggan",
     Description = "Otomatis arahkan antrean pelanggan ke PC kosong",
     Default     = false,
-    Callback    = function(val) cfg.autoPlaceEnabled = val end
+    Callback    = function(val)
+        if type(val) == "boolean" then cfg.autoPlaceEnabled = val end
+    end
 })
 
 SecWarnet:AddToggle("autoCleanEnabled", {
     Title       = "Auto Bersih Sampah",
     Default     = false,
-    Callback    = function(val) cfg.autoCleanEnabled = val end
+    Callback    = function(val)
+        if type(val) == "boolean" then cfg.autoCleanEnabled = val end
+    end
 })
 
 SecWarnet:AddToggle("autoServeEnabled", {
     Title       = "Auto Layani Semua Menu",
     Description = "Otomatis masak & antar Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda",
     Default     = false,
-    Callback    = function(val) cfg.autoServeEnabled = val end
+    Callback    = function(val)
+        if type(val) == "boolean" then cfg.autoServeEnabled = val end
+    end
 })
 
 local SecDelay = Tabs.AutoFarm:AddSection("⏱️ Pengaturan Delay")
@@ -1097,7 +1131,9 @@ SecDelay:AddSlider("reopenDelay", {
     Min      = 1,
     Max      = 15,
     Rounding = 0,
-    Callback = function(val) cfg.reopenDelay = val end
+    Callback = function(val)
+        if type(val) == "number" then cfg.reopenDelay = val end
+    end
 })
 
 SecDelay:AddSlider("continueDelay", {
@@ -1106,7 +1142,9 @@ SecDelay:AddSlider("continueDelay", {
     Min      = 1,
     Max      = 10,
     Rounding = 0,
-    Callback = function(val) cfg.continueDelay = val end
+    Callback = function(val)
+        if type(val) == "number" then cfg.continueDelay = val end
+    end
 })
 
 local SecPlayer = Tabs.AutoFarm:AddSection("🏃 Player & Anti AFK")
@@ -1114,16 +1152,20 @@ local SecPlayer = Tabs.AutoFarm:AddSection("🏃 Player & Anti AFK")
 SecPlayer:AddToggle("antiAfkEnabled", {
     Title    = "🛡️ Anti AFK",
     Default  = true,
-    Callback = function(val) cfg.antiAfkEnabled = val end
+    Callback = function(val)
+        if type(val) == "boolean" then cfg.antiAfkEnabled = val end
+    end
 })
 
 SecPlayer:AddToggle("walkSpeedEnabled", {
     Title    = "Custom WalkSpeed",
     Default  = false,
     Callback = function(val)
-        cfg.walkSpeedEnabled = val
-        local hum = getHumanoid()
-        if hum then hum.WalkSpeed = val and cfg.walkSpeedValue or 16 end
+        if type(val) == "boolean" then
+            cfg.walkSpeedEnabled = val
+            local hum = getHumanoid()
+            if hum then hum.WalkSpeed = val and cfg.walkSpeedValue or 16 end
+        end
     end
 })
 
@@ -1134,10 +1176,12 @@ SecPlayer:AddSlider("walkSpeedValue", {
     Max      = 150,
     Rounding = 0,
     Callback = function(val)
-        cfg.walkSpeedValue = val
-        if cfg.walkSpeedEnabled then
-            local hum = getHumanoid()
-            if hum then hum.WalkSpeed = val end
+        if type(val) == "number" then
+            cfg.walkSpeedValue = val
+            if cfg.walkSpeedEnabled then
+                local hum = getHumanoid()
+                if hum then hum.WalkSpeed = val end
+            end
         end
     end
 })
@@ -1148,7 +1192,9 @@ local SecWebhook = Tabs.Settings:AddSection("🔔 Discord Webhook")
 SecWebhook:AddToggle("webhookEnabled", {
     Title    = "Kirim Notif Auto Buy",
     Default  = false,
-    Callback = function(val) cfg.webhookEnabled = val end
+    Callback = function(val)
+        if type(val) == "boolean" then cfg.webhookEnabled = val end
+    end
 })
 
 SecWebhook:AddInput("webhookUrlInput", {
@@ -1157,7 +1203,9 @@ SecWebhook:AddInput("webhookUrlInput", {
     Placeholder = "https://discord.com/api/webhooks/...",
     Numeric     = false,
     Finished    = false,
-    Callback    = function(val) cfg.webhookUrl = val end
+    Callback    = function(val)
+        if type(val) == "string" then cfg.webhookUrl = val end
+    end
 })
 
 SecWebhook:AddButton({
@@ -1180,6 +1228,45 @@ SaveManager:SetFolder("WarnetopiaHub_Fluent/configs")
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({ "selectedManualStore" })
 SaveManager:BuildConfigSection(Tabs.Settings)
+
+-- Muat autoload config lebih awal sebelum loop berjalan
+SaveManager:LoadAutoloadConfig()
+Window:SelectTab(1)
+
+-- ─── SINKRONISASI FLUENT.OPTIONS → CFG ────────────────────────────
+local function syncCfgFromOptions()
+    if not Options then return end
+    local toggleKeys = {
+        "autoBuyEnabled", "autoMinimartEnabled", "autoOpenEnabled",
+        "autoDayEnabled", "autoPlaceEnabled", "autoCleanEnabled",
+        "autoServeEnabled", "autoEsTehEnabled", "walkSpeedEnabled",
+        "antiAfkEnabled", "stockAlertEnabled", "webhookEnabled",
+        "store_computer", "store_furniture", "store_decor",
+        "rarityLangka", "raritySangat"
+    }
+    for _, k in ipairs(toggleKeys) do
+        if Options[k] and Options[k].Value ~= nil then
+            cfg[k] = Options[k].Value
+        end
+    end
+    if Options.webhookStockAlert and Options.webhookStockAlert.Value ~= nil then
+        cfg.webhookEnabled = Options.webhookStockAlert.Value
+    end
+
+    local sliderKeys = { "minTier", "stockThreshold", "reopenDelay", "continueDelay", "walkSpeedValue" }
+    for _, k in ipairs(sliderKeys) do
+        if Options[k] and type(Options[k].Value) == "number" then
+            cfg[k] = Options[k].Value
+        end
+    end
+
+    if Options.esTehChoiceDropdown and Options.esTehChoiceDropdown.Value then
+        cfg.esTehChoice = ESTEH_DISPLAY_TO_ID[Options.esTehChoiceDropdown.Value] or cfg.esTehChoice
+    end
+    if Options.webhookUrlInput and type(Options.webhookUrlInput.Value) == "string" then
+        cfg.webhookUrl = Options.webhookUrlInput.Value
+    end
+end
 
 -- ─── SYNC DARI GAME UI ────────────────────────────────────────────
 local function resolveItemByDisplayName(rawName)
@@ -1323,6 +1410,7 @@ end
 
 local function processSnap(snap)
     if not snap then return end
+    syncCfgFromOptions()
     latestSnap = snap
     task.spawn(function() pcall(updateDashboard, snap) end)
 
@@ -1433,6 +1521,8 @@ local serveTimer = 0
 local esTehTimer = 0
 
 RunService.Heartbeat:Connect(function(dt)
+    syncCfgFromOptions()
+
     if cfg.walkSpeedEnabled then
         local hum = getHumanoid()
         if hum and hum.WalkSpeed ~= cfg.walkSpeedValue then
@@ -1550,9 +1640,6 @@ RunService.Heartbeat:Connect(function(dt)
 
     lastStatus = status
 end)
-
-Window:SelectTab(1)
-SaveManager:LoadAutoloadConfig()
 
 -- ─── TOMBOL MELAYANG MOBILE (BUKA / TUTUP FLUENT) ─────────────────
 if isMobile then
