@@ -1,20 +1,6 @@
 --[[
-    Warnetopia Hub — Full Script
+    Warnetopia Hub — Full Script (Mobile Fixed)
     UI: LinoriaLib
-    Features:
-    ✅ Auto Buy Rare Items (Komputer, Mebel, Dekorasi)
-    ✅ Auto Restock Minimart
-    ✅ Manual Buy Semua Toko
-    ✅ Auto Buka Warnet
-    ✅ Auto Lanjut Hari (Multi-root UI + VirtualInputManager Click)
-    ✅ Auto Tempatkan Pelanggan
-    ✅ Auto Bersih Sampah
-    ✅ Auto Layani Semua Menu (Mie Telur, Nasi Goreng, Snack, Kopi, Es Teh, Soda)
-    ✅ Auto Buff Es Teh Segar
-    ✅ Dashboard Real-Time + Low Stock Alert
-    ✅ WalkSpeed Custom & Anti AFK
-    ✅ Discord Webhook & Save/Load Config
-    ✅ Mobile Toggle Button + Scrollable Columns + Drag & Resize Window
     Credit: Realx13
 --]]
 
@@ -94,7 +80,6 @@ local ESTEH_ID_TO_LABEL = {
     es_jeruk = "Es Jeruk ($7.000)",
 }
 
--- Waktu masak per menu (detik)
 local COOK_DURATION = {
     ["Buat Mie Telur"]   = 2.5,
     ["Buat Nasi Goreng"] = 2.5,
@@ -104,7 +89,6 @@ local COOK_DURATION = {
     ["Buat Soda"]        = 0.8,
 }
 
--- Menu masak: foodKey → { cook, station, switchNeeded }
 local FOOD_MAP = {
     ["mie telur"]   = { cook = "Buat Mie Telur",  station = "stove",          switchNeeded = false },
     ["nasi goreng"] = { cook = "Buat Nasi Goreng", station = "stove",          switchNeeded = true  },
@@ -207,54 +191,15 @@ local function returnToOrigin(origCFrame)
     safeTeleport(origCFrame)
 end
 
-local function isObjTrulyVisible(obj)
-        if not obj or not obj:IsA("GuiObject") or not obj.Visible then return false end
-        local curr = obj.Parent
-        while curr and curr:IsA("GuiObject") do
-            if not curr.Visible then return false end
-            curr = curr.Parent
-        end
-        return true
+local function isGuiTrulyVisible(obj)
+    if not obj or not obj:IsA("GuiObject") or not obj.Visible then return false end
+    local curr = obj.Parent
+    while curr and curr:IsA("GuiObject") do
+        if not curr.Visible then return false end
+        curr = curr.Parent
     end
-
-    local function dispatchTouchAsMouse(pos2D, isBegin)
-        if not hubGui or not hubGui.Enabled then return end
-        local fakeInp = createFakeMouseInput(
-            pos2D,
-            isBegin and Enum.UserInputState.Begin or Enum.UserInputState.End
-        )
-
-        for _, obj in ipairs(hubGui:GetDescendants()) do
-            if isObjTrulyVisible(obj) and obj.Name ~= "MobileDragHeader" and obj.Name ~= "MobileResizeHandle" then
-                local p = obj.AbsolutePosition
-                local s = obj.AbsoluteSize
-                if s.X > 0 and s.Y > 0
-                and pos2D.X >= p.X and pos2D.X <= (p.X + s.X)
-                and pos2D.Y >= p.Y and pos2D.Y <= (p.Y + s.Y) then
-                    if isBegin then
-                        if obj:IsA("TextBox") then
-                            pcall(function() obj:CaptureFocus() end)
-                        end
-                        if firesignal then
-                            pcall(function() firesignal(obj.InputBegan, fakeInp) end)
-                            if obj:IsA("GuiButton") then
-                                pcall(function() firesignal(obj.MouseButton1Down) end)
-                                pcall(function() firesignal(obj.MouseButton1Click) end)
-                                pcall(function() firesignal(obj.Activated) end)
-                            end
-                        end
-                    else
-                        if firesignal then
-                            pcall(function() firesignal(obj.InputEnded, fakeInp) end)
-                            if obj:IsA("GuiButton") then
-                                pcall(function() firesignal(obj.MouseButton1Up) end)
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
+    return true
+end
 
 local function getAllGuiRoots()
     local roots = {}
@@ -1579,35 +1524,42 @@ if UserInputService.TouchEnabled then
     local hubGui = findHubScreenGui()
     local mainFrame = nil
 
-    -- Ubah wadah kolom kiri & kanan di setiap tab menjadi ScrollingFrame agar tidak meluber
-    local function makeColumnsScrollable(rootFrame)
+    -- Ubah setiap kolom kiri/kanan di dalam halaman tab menjadi ScrollingFrame
+    local function makeTabColumnsScrollable(rootFrame)
         for _, obj in ipairs(rootFrame:GetDescendants()) do
-            if obj:IsA("Frame") and obj.ClipsDescendants then
-                for _, child in ipairs(obj:GetChildren()) do
-                    if child:IsA("Frame") and child:FindFirstChildOfClass("UIListLayout") and child.AbsoluteSize.Y > 180 then
-                        local layout = child:FindFirstChildOfClass("UIListLayout")
+            if obj:IsA("UIListLayout") and obj.Parent and obj.Parent:IsA("Frame") then
+                local col = obj.Parent
+                -- Pastikan ini kolom grupbox (bukan bar tab horizontal)
+                if obj.FillDirection == Enum.FillDirection.Vertical and col.AbsoluteSize.X >= 140 and col.AbsoluteSize.Y >= 150 then
+                    if not col.Parent:IsA("ScrollingFrame") then
                         local scroll = Instance.new("ScrollingFrame")
-                        scroll.Name                   = child.Name .. "_Scroll"
-                        scroll.Size                   = child.Size
-                        scroll.Position               = child.Position
-                        scroll.AnchorPoint            = child.AnchorPoint
+                        scroll.Name                   = col.Name .. "_Scroll"
+                        scroll.Size                   = col.Size
+                        scroll.Position               = col.Position
+                        scroll.AnchorPoint            = col.AnchorPoint
                         scroll.BackgroundTransparency = 1
                         scroll.BorderSizePixel        = 0
                         scroll.ScrollBarThickness     = 4
                         scroll.ScrollBarImageColor3   = Color3.fromRGB(120, 90, 200)
                         scroll.ScrollingDirection     = Enum.ScrollingDirection.Y
-                        scroll.CanvasSize             = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 24)
-                        scroll.ZIndex                 = child.ZIndex
-                        scroll.Parent                 = child.Parent
+                        scroll.CanvasSize             = UDim2.new(0, 0, 0, obj.AbsoluteContentSize.Y + 30)
+                        scroll.ZIndex                 = col.ZIndex
+                        scroll.Visible                = col.Visible
+                        scroll.Parent                 = col.Parent
 
-                        for _, item in ipairs(child:GetChildren()) do
-                            item.Parent = scroll
+                        -- Sinkronkan visibilitas jika induknya berubah
+                        col:GetPropertyChangedSignal("Visible"):Connect(function()
+                            scroll.Visible = col.Visible
+                        end)
+
+                        for _, child in ipairs(col:GetChildren()) do
+                            child.Parent = scroll
                         end
 
-                        layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                            scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 24)
+                        obj:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                            scroll.CanvasSize = UDim2.new(0, 0, 0, obj.AbsoluteContentSize.Y + 30)
                         end)
-                        child:Destroy()
+                        col:Destroy()
                     end
                 end
             end
@@ -1628,7 +1580,7 @@ if UserInputService.TouchEnabled then
 
         task.defer(function()
             if mainFrame then
-                makeColumnsScrollable(mainFrame)
+                makeTabColumnsScrollable(mainFrame)
 
                 -- 1. Drag Header Atas untuk memindahkan posisi GUI
                 local dragHeader = Instance.new("TextButton")
@@ -1707,7 +1659,17 @@ if UserInputService.TouchEnabled then
         end)
     end
 
-    -- Konversi sentuhan jari menjadi MouseButton1 untuk LinoriaLib
+    -- Cek visibilitas seluruh parent chain agar tab tersembunyi tidak ikut terklik
+    local function isObjTrulyVisible(obj)
+        if not obj or not obj:IsA("GuiObject") or not obj.Visible then return false end
+        local curr = obj.Parent
+        while curr and curr:IsA("GuiObject") do
+            if not curr.Visible then return false end
+            curr = curr.Parent
+        end
+        return true
+    end
+
     local function createFakeMouseInput(posVector, state)
         return setmetatable({
             UserInputType  = Enum.UserInputType.MouseButton1,
@@ -1732,10 +1694,11 @@ if UserInputService.TouchEnabled then
         )
 
         for _, obj in ipairs(hubGui:GetDescendants()) do
-            if obj:IsA("GuiObject") and obj.Visible and obj.Name ~= "MobileDragHeader" and obj.Name ~= "MobileResizeHandle" then
+            if isObjTrulyVisible(obj) and obj.Name ~= "MobileDragHeader" and obj.Name ~= "MobileResizeHandle" then
                 local p = obj.AbsolutePosition
                 local s = obj.AbsoluteSize
-                if pos2D.X >= p.X and pos2D.X <= (p.X + s.X)
+                if s.X > 0 and s.Y > 0
+                and pos2D.X >= p.X and pos2D.X <= (p.X + s.X)
                 and pos2D.Y >= p.Y and pos2D.Y <= (p.Y + s.Y) then
                     if isBegin then
                         if obj:IsA("TextBox") then
@@ -1762,17 +1725,30 @@ if UserInputService.TouchEnabled then
         end
     end
 
+    -- Bedakan tap (klik) dengan swipe (scroll)
     local touchStartPoint = Vector2.zero
+    local touchMovedFar   = false
+
     UserInputService.TouchStarted:Connect(function(touch, _)
         if not hubGui or not hubGui.Parent then hubGui = findHubScreenGui() end
         touchStartPoint = Vector2.new(touch.Position.X, touch.Position.Y)
-        dispatchTouchAsMouse(touchStartPoint, true)
+        touchMovedFar   = false
+    end)
+
+    UserInputService.TouchMoved:Connect(function(touch, _)
+        local pos = Vector2.new(touch.Position.X, touch.Position.Y)
+        if (pos - touchStartPoint).Magnitude > 12 then
+            touchMovedFar = true
+        end
     end)
 
     UserInputService.TouchEnded:Connect(function(touch, _)
         local pos = Vector2.new(touch.Position.X, touch.Position.Y)
-        if (pos - touchStartPoint).Magnitude < 12 then
-            dispatchTouchAsMouse(pos, false)
+        if not touchMovedFar and (pos - touchStartPoint).Magnitude <= 12 then
+            dispatchTouchAsMouse(pos, true)
+            task.defer(function()
+                dispatchTouchAsMouse(pos, false)
+            end)
         end
     end)
 
