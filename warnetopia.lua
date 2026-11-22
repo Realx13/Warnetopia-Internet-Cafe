@@ -14,7 +14,7 @@
     ✅ Dashboard Real-Time + Low Stock Alert
     ✅ WalkSpeed Custom & Anti AFK
     ✅ Discord Webhook & Save/Load Config
-    ✅ Mobile Toggle Button (Target Presisi Linoria + Auto-Resize Layar HP)
+    ✅ Mobile Toggle Button + Full Touch Support + Auto-Resize Layar HP
     Credit: Realx13
 --]]
 
@@ -1509,7 +1509,7 @@ SaveManager:LoadAutoloadConfig()
 Library:SetWatermark('Warnetopia Hub 🖤 | by Realx13')
 Library.Toggled = true
 
--- ─── MOBILE TOGGLE BUTTON ────────────────────────────────────────
+-- ─── MOBILE TOGGLE BUTTON & TOUCH SUPPORT ───────────────────────
 if UserInputService.TouchEnabled then
     local pg = LocalPlayer:WaitForChild("PlayerGui")
     local existing = pg:FindFirstChild("MobileToggle")
@@ -1539,8 +1539,9 @@ if UserInputService.TouchEnabled then
 
     local hubGui = findHubScreenGui()
 
-    -- Perkecil window otomatis agar pas di layar HP
+    -- Perkecil window otomatis agar pas di layar HP & aktifkan input sentuh
     if hubGui then
+        hubGui.DisplayOrder = 100
         for _, frame in ipairs(hubGui:GetChildren()) do
             if frame:IsA("Frame") and frame.AbsoluteSize.X > 400 then
                 frame.Size = UDim2.fromOffset(480, 320)
@@ -1548,6 +1549,30 @@ if UserInputService.TouchEnabled then
                 break
             end
         end
+
+        -- Jembatan sentuh layar HP agar tombol, tab, toggle, dan slider Linoria bisa dipencet
+        local function enableTouchOnObj(obj)
+            if obj:IsA("GuiButton") then
+                obj.Active = true
+                obj.TouchTap:Connect(function()
+                    if firesignal then
+                        pcall(function() firesignal(obj.MouseButton1Click) end)
+                        pcall(function() firesignal(obj.Activated) end)
+                    end
+                end)
+            elseif obj:IsA("Frame") or obj:IsA("TextLabel") then
+                obj.InputBegan:Connect(function(inp)
+                    if inp.UserInputType == Enum.UserInputType.Touch and firesignal then
+                        pcall(function() firesignal(obj.InputBegan, inp) end)
+                    end
+                end)
+            end
+        end
+
+        for _, desc in ipairs(hubGui:GetDescendants()) do
+            enableTouchOnObj(desc)
+        end
+        hubGui.DescendantAdded:Connect(enableTouchOnObj)
     end
 
     local MobileGui = Instance.new("ScreenGui")
@@ -1569,7 +1594,6 @@ if UserInputService.TouchEnabled then
     Btn.Font                   = Enum.Font.GothamBold
     Btn.ZIndex                 = 99999
     Btn.AutoButtonColor        = false
-    Btn.Modal                  = true
     Btn.Parent                 = MobileGui
 
     Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 14)
