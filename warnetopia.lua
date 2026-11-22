@@ -14,7 +14,7 @@
     ✅ Dashboard Real-Time + Low Stock Alert
     ✅ WalkSpeed Custom & Anti AFK
     ✅ Discord Webhook & Save/Load Config
-    ✅ Mobile Toggle Button
+    ✅ Mobile Toggle Button (Khusus GUI Linoria + Auto-Resize Layar HP)
     Credit: Realx13
 --]]
 
@@ -31,6 +31,7 @@ local RunService          = game:GetService("RunService")
 local VirtualUser         = game:GetService("VirtualUser")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local HttpService         = game:GetService("HttpService")
+local UserInputService    = game:GetService("UserInputService")
 local LocalPlayer         = Players.LocalPlayer
 
 local httpRequest = (syn and syn.request) or (http and http.request) or http_request or request
@@ -786,11 +787,15 @@ local function checkStockAlert(stock)
 end
 
 -- ─── BUILD LINORIA UI ─────────────────────────────────────────────
+local initialWindowSize = UserInputService.TouchEnabled
+    and UDim2.fromOffset(480, 320)
+    or UDim2.fromOffset(780, 650)
+
 local Window = Library:CreateWindow({
     Title    = 'Warnetopia Hub 🖤 | Made by Realx13',
     Center   = true,
     AutoShow = true,
-    Size     = UDim2.fromOffset(780, 650),
+    Size     = initialWindowSize,
 })
 
 -- ══ TAB 1: AUTO BUY ══════════════════════════════════════════════
@@ -1502,9 +1507,16 @@ end)
 SaveManager:LoadAutoloadConfig()
 
 -- ─── MOBILE TOGGLE BUTTON ────────────────────────────────────────
-local UIS = game:GetService("UserInputService")
-if UIS.TouchEnabled then
-    local existing = LocalPlayer.PlayerGui:FindFirstChild("MobileToggle")
+if UserInputService.TouchEnabled then
+    pcall(function()
+        if Library.MainFrame then
+            Library.MainFrame.Size = UDim2.fromOffset(480, 320)
+            Library.MainFrame.Position = UDim2.new(0.5, -240, 0.5, -160)
+        end
+    end)
+
+    local pg = LocalPlayer:WaitForChild("PlayerGui")
+    local existing = pg:FindFirstChild("MobileToggle")
     if existing then existing:Destroy() end
 
     local MobileGui = Instance.new("ScreenGui")
@@ -1512,17 +1524,17 @@ if UIS.TouchEnabled then
     MobileGui.ResetOnSpawn   = false
     MobileGui.DisplayOrder   = 9999
     MobileGui.IgnoreGuiInset = true
-    MobileGui.Parent         = LocalPlayer.PlayerGui
+    MobileGui.Parent         = pg
 
     local Btn = Instance.new("TextButton")
     Btn.Name                   = "ToggleBtn"
-    Btn.Size                   = UDim2.fromOffset(60, 60)
-    Btn.Position               = UDim2.new(0, 8, 0.5, -30)
+    Btn.Size                   = UDim2.fromOffset(52, 52)
+    Btn.Position               = UDim2.new(0, 8, 0.5, -26)
     Btn.BackgroundColor3       = Color3.fromRGB(15, 15, 25)
     Btn.BackgroundTransparency = 0.1
     Btn.BorderSizePixel        = 0
     Btn.Text                   = "🖤"
-    Btn.TextSize               = 26
+    Btn.TextSize               = 24
     Btn.Font                   = Enum.Font.GothamBold
     Btn.ZIndex                 = 9999
     Btn.AutoButtonColor        = false
@@ -1533,37 +1545,61 @@ if UIS.TouchEnabled then
     local stroke = Instance.new("UIStroke", Btn)
     stroke.Color     = Color3.fromRGB(120, 90, 200)
     stroke.Thickness = 2.5
-    stroke.Parent    = Btn
 
-    local guiVisible   = true
-    local isDragging   = false
-    local movedPixels  = 0
-    local startTouch   = Vector2.new()
-    local startBtnPos  = UDim2.new()
-    local touchActive  = false
+    local guiVisible  = true
+    local isDragging  = false
+    local movedPixels = 0
+    local startTouch  = Vector2.new()
+    local startBtnPos = UDim2.new()
+    local touchActive = false
+
+    local function getLinoriaGuis()
+        local list = {}
+        local containers = {}
+        pcall(function() table.insert(containers, game:GetService("CoreGui")) end)
+        if gethui then
+            pcall(function() table.insert(containers, gethui()) end)
+        end
+        for _, root in ipairs(containers) do
+            for _, g in ipairs(root:GetChildren()) do
+                if g:IsA("ScreenGui") then
+                    for _, d in ipairs(g:GetDescendants()) do
+                        if d:IsA("TextLabel") and (d.Text or ""):find("Warnetopia Hub", 1, true) then
+                            table.insert(list, g)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+        return list
+    end
 
     local function toggleGui()
         guiVisible = not guiVisible
-        for _, g in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
-            if g:IsA("ScreenGui")
-            and g.Name ~= "MobileToggle"
-            and g.Name ~= "AutoOpenGui"
-            and g.Name ~= "AutoBuyGui" then
-                g.Enabled = guiVisible
-            end
-        end
         Btn.Text = guiVisible and "🖤" or "👁"
+
+        if type(Library.Toggle) == "function" then
+            pcall(function()
+                if Library.Toggled ~= guiVisible then
+                    Library.Toggle()
+                end
+            end)
+        end
+
+        for _, g in ipairs(getLinoriaGuis()) do
+            g.Enabled = guiVisible
+        end
         pcall(function() Library.Toggled = guiVisible end)
-        pcall(function() Library:SetVisible(guiVisible) end)
     end
 
     Btn.InputBegan:Connect(function(inp)
         if inp.UserInputType ~= Enum.UserInputType.Touch then return end
-        touchActive   = true
-        isDragging    = false
-        movedPixels   = 0
-        startTouch    = Vector2.new(inp.Position.X, inp.Position.Y)
-        startBtnPos   = Btn.Position
+        touchActive = true
+        isDragging  = false
+        movedPixels = 0
+        startTouch  = Vector2.new(inp.Position.X, inp.Position.Y)
+        startBtnPos = Btn.Position
         inp:GetPropertyChangedSignal("Delta"):Connect(function()
             if not touchActive then return end
             local cur = Vector2.new(inp.Position.X, inp.Position.Y)
